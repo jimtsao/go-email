@@ -1,6 +1,7 @@
 package syntax_test
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -9,25 +10,47 @@ import (
 )
 
 const (
-	alpha    = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	digit    = "0123456789"
-	atext    = alpha + digit + "!#$%&'*+-/=?^_`{|}~"
-	specials = "()<>[]:;@\\,.\""
-	vchar    = atext + specials
-	dtext    = atext + "()<>:;@,.\"" // vchar minus []\
+	alpha         = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	digit         = "0123456789"
+	atext         = alpha + digit + atextSpecials
+	atextSpecials = "!#$%&'*+-/=?^_`{|}~"
+	specials      = "()<>[]:;@\\,.\""
+	vchar         = atext + specials
+	dtext         = atext + "()<>:;@,.\"" // vchar minus []\
 )
 
-func check(t *testing.T, fn func(string) bool, allowed string) {
+func check(t *testing.T, fn func(string) bool, allowed ...string) {
+	// build allowed charset
+	sb := strings.Builder{}
+	for _, a := range allowed {
+		min, max, _ := strings.Cut(a, "-")
+		if mins, err := strconv.Atoi(min); err == nil {
+			// is range
+			if maxs, err := strconv.Atoi(max); err == nil {
+				for i := mins; i <= maxs; i++ {
+					sb.WriteRune(rune(i))
+				}
+			}
+
+			// is single number
+			sb.WriteRune(rune(mins))
+		} else {
+			// is string
+			sb.WriteString(a)
+		}
+	}
+
+	// test against this charset
 	for i := 0; i < 255; i++ {
-		s := string([]byte{uint8(i)})
-		want := strings.Contains(allowed, s)
-		got := fn(s)
-		assert.Equalf(t, want, got, "%q", s)
+		r := rune(i)
+		want := strings.ContainsRune(sb.String(), r)
+		got := fn(string(r))
+		assert.Equalf(t, want, got, "ascii (%d): %q", i, r)
 	}
 }
 
 func TestIsVchar(t *testing.T) {
-	check(t, syntax.IsVchar, vchar)
+	check(t, syntax.IsVchar, "33-126")
 }
 
 func TestIsSpecials(t *testing.T) {
@@ -35,11 +58,11 @@ func TestIsSpecials(t *testing.T) {
 }
 
 func TestIsAtext(t *testing.T) {
-	check(t, syntax.IsAtext, atext)
+	check(t, syntax.IsAtext, "48-57", "65-90", "97-122", atextSpecials)
 }
 
 func TestIsDtext(t *testing.T) {
-	check(t, syntax.IsDtext, dtext)
+	check(t, syntax.IsDtext, "33-90", "94-126")
 }
 
 func TestIsDotAtomText(t *testing.T) {
