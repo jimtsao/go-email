@@ -52,6 +52,18 @@ func (m MessageID) Validate() error {
 		return fmt.Errorf("message-id must not exceed %d octets, has %d octets", maxContentLen, len(id))
 	}
 
+	// chars
+	nameValid := IsValidHeaderName(m.Name())
+	valValid := IsValidHeaderValue(id)
+	if !nameValid && !valValid {
+		return fmt.Errorf("%s: invalid characters in header name and body", m.Name())
+	} else if !nameValid {
+		return fmt.Errorf("%s: invalid characters in header name", m.Name())
+	} else if !valValid {
+		return fmt.Errorf("%s: invalid characters in header body", m.Name())
+	}
+
+	// syntax
 	if !syntax.IsMessageID(id) {
 		return errors.New("message-id invalid syntax")
 	}
