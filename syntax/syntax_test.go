@@ -15,6 +15,9 @@ const (
 	atext         = alpha + digit + atextSpecials
 	atextSpecials = "!#$%&'*+-/=?^_`{|}~"
 	specials      = "()<>[]:;@\\,.\""
+	tSpecials     = "()<>@,;:\\\"/[]?="
+	tokenSpecials = "!#$%&'*+-^_`{|}~."
+	token         = alpha + digit + tokenSpecials
 	vchar         = atext + specials
 	dtext         = atext + "()<>:;@,.\"" // vchar minus []\
 )
@@ -53,8 +56,16 @@ func TestIsVchar(t *testing.T) {
 	check(t, syntax.IsVchar, "33-126")
 }
 
+func TestIsCTL(t *testing.T) {
+	check(t, syntax.IsCTL, "0-31", "127")
+}
+
 func TestIsSpecials(t *testing.T) {
 	check(t, syntax.IsSpecials, specials)
+}
+
+func TestIsTSpecials(t *testing.T) {
+	check(t, syntax.IsTSpecials, tSpecials)
 }
 
 func TestIsAtext(t *testing.T) {
@@ -86,6 +97,10 @@ func TestIsDotAtomText(t *testing.T) {
 			assert.Falsef(t, got, "%+q", s)
 		}
 	}
+}
+
+func TestIsRFC2045Token(t *testing.T) {
+	check(t, syntax.IsRFC2045Token, token)
 }
 
 func TestIsNoFoldLiteral(t *testing.T) {

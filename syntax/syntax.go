@@ -1,6 +1,17 @@
 package syntax
 
-import "strings"
+import (
+	"strings"
+)
+
+func checker(s string, fn func(b byte) bool) bool {
+	for i := 0; i < len(s); i++ {
+		if !fn(s[i]) {
+			return false
+		}
+	}
+	return true
+}
 
 // IsVchar definition:
 //
@@ -8,34 +19,31 @@ import "strings"
 //
 // printable ascii
 func IsVchar(s string) bool {
-	for i := 0; i < len(s); i++ {
-		if !isVchar(s[i]) {
-			return false
-		}
-	}
-
-	return true
+	return checker(s, isVchar)
 }
 
 func isVchar(b byte) bool {
 	return '!' <= b && b <= '~'
 }
 
+// CTL   =   %d0-31 / %d127
+func IsCTL(s string) bool {
+	return checker(s, isCTL)
+}
+
+func isCTL(b byte) bool {
+	return b <= 31 || b == 127
+}
+
 // IsSpecials RFC 5322 definition:
 //
 //	specials   =   "(" / ")" / "<" / ">" / "[" / "]" /
-//					":" / ";" / "@" / "\" / "," / "." /
-//					DQUOTE
+//	               ":" / ";" / "@" / "\" / "," / "." /
+//	               DQUOTE
 //
 // characters that do not appear in atext
 func IsSpecials(s string) bool {
-	for i := 0; i < len(s); i++ {
-		if !isSpecials(s[i]) {
-			return false
-		}
-	}
-
-	return true
+	return checker(s, isSpecials)
 }
 
 func isSpecials(b byte) bool {
@@ -45,7 +53,34 @@ func isSpecials(b byte) bool {
 	}
 
 	switch b {
-	case '(', ')', '<', '>', '[', ']', ':', ';', '@', '\\', ',', '.', '"':
+	case '(', ')', '<', '>', '[', ']',
+		':', ';', '@', '\\', ',', '.',
+		'"':
+		return true
+	}
+
+	return false
+}
+
+// IsTSpecials RFC2045 definition:
+//
+//	tspecials :=  "(" / ")" / "<" / ">" / "@" /
+//	              "," / ";" / ":" / "\" / <"> /
+//	              "/" / "[" / "]" / "?" / "="
+func IsTSpecials(s string) bool {
+	return checker(s, isTSpecials)
+}
+
+func isTSpecials(b byte) bool {
+	// fast check
+	if b < '"' || b > ']' {
+		return false
+	}
+
+	switch b {
+	case '(', ')', '<', '>', '@',
+		',', ';', ':', '\\', '"',
+		'/', '[', ']', '?', '=':
 		return true
 	}
 
@@ -68,13 +103,7 @@ func isSpecials(b byte) bool {
 //
 // DIGIT: 0-9
 func IsAtext(s string) bool {
-	for i := 0; i < len(s); i++ {
-		if !isAtext(s[i]) {
-			return false
-		}
-	}
-
-	return true
+	return checker(s, isAtext)
 }
 
 func isAtext(b byte) bool {
@@ -91,13 +120,7 @@ func isAtext(b byte) bool {
 //
 // printable ascii excluding "[", "]", or "\"
 func IsDtext(s string) bool {
-	for i := 0; i < len(s); i++ {
-		if !isDtext(s[i]) {
-			return false
-		}
-	}
-
-	return true
+	return checker(s, isDtext)
 }
 
 func isDtext(b byte) bool {
@@ -132,6 +155,20 @@ func isDotAtomText(b byte, dot bool) bool {
 	}
 
 	return isAtext(b)
+}
+
+// IsRFC2045Token:
+//
+// token := 1*<any (US-ASCII) CHAR except SPACE, CTLs, or tspecials>
+func IsRFC2045Token(s string) bool {
+	return checker(s, isRFC2045Token)
+}
+
+func isRFC2045Token(b byte) bool {
+	if isTSpecials(b) {
+		return false
+	}
+	return '!' <= b && b <= '~'
 }
 
 // IsNoFoldLiteral:
