@@ -198,13 +198,13 @@ func IsNoFoldLiteral(s string) bool {
 	return true
 }
 
-// IsMessageID:
+// IsMsgID:
 //
 //	msg-id          =   [CFWS] "<" id-left "@" id-right ">" [CFWS]
 //	id-left         =   dot-atom-text
 //	id-right        =   dot-atom-text / no-fold-literal
 //	no-fold-literal =   "[" *dtext "]"
-func IsMessageID(s string) bool {
+func IsMsgID(s string) bool {
 	if len(s) < 3 || s[0] != '<' || s[len(s)-1] != '>' {
 		return false
 	}

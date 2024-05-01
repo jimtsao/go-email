@@ -27,8 +27,9 @@ func TestMessageID(t *testing.T) {
 		{"<message@id>", "Message-ID: <message@id>\r\n", true},
 		{"message-id", "Message-ID: <message-id@>\r\n", true},
 		{"message@id", "Message-ID: <message@id>\r\n", true},
-		{ls, "Message-ID: " + fmt.Sprintf("<%s@>", ls) + "\r\n", true},
-		{ls + "-", "Message-ID: " + fmt.Sprintf("<%s-@>", ls) + "\r\n", false},
+		{ls, "Message-ID: " + fmt.Sprintf("<%s@>\r\n", ls), true},
+		{"messa<ge@i>d", "Message-ID: messa<ge@i>d\r\n", false},
+		{ls + "-", "Message-ID: " + fmt.Sprintf("<%s-@>\r\n", ls), false},
 		{"<in:valid@char>", "Message-ID: <in:valid@char>\r\n", false},
 	} {
 		{

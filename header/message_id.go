@@ -7,7 +7,6 @@ package header
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/jimtsao/go-email/syntax"
 )
@@ -43,11 +42,9 @@ func (m MessageID) Name() string {
 }
 
 func (m MessageID) Validate() error {
-	// folding not permitted in message-id field
-	// max line length = 998
-	maxLineLen := 998
-	maxContentLen := maxLineLen - len("Message-ID: ")
-	id := m.normalise()
+	// folding not permitted within actual content of msg-id
+	maxContentLen := maxLineLen - len(m.Name()+": ")
+	id := msgid(m).String()
 	if len(id) > maxContentLen {
 		return fmt.Errorf("message-id must not exceed %d octets, has %d octets", maxContentLen, len(id))
 	}
@@ -64,7 +61,7 @@ func (m MessageID) Validate() error {
 	}
 
 	// syntax
-	if !syntax.IsMessageID(id) {
+	if !syntax.IsMsgID(id) {
 		return errors.New("message-id invalid syntax")
 	}
 
@@ -72,18 +69,6 @@ func (m MessageID) Validate() error {
 }
 
 func (m MessageID) String() string {
-	return fmt.Sprintf("Message-ID: %s\r\n", m.normalise())
-}
-
-// normalise trims whitespace and inserts @ and < > if needed
-func (m MessageID) normalise() string {
-	s := string(m)
-	s = strings.TrimSpace(s)
-	if !strings.Contains(s, "@") {
-		s = s + "@"
-	}
-	if !strings.Contains(s, "<") && !strings.Contains(s, ">") {
-		return "<" + s + ">"
-	}
-	return s
+	id := msgid(m).String()
+	return fmt.Sprintf("Message-ID: %s\r\n", id)
 }

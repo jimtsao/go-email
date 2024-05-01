@@ -12,6 +12,7 @@ Package makes best effort to conform to following standards:
 - [RFC 2047](https://datatracker.ietf.org/doc/html/rfc2047) — MIME Part 3: Message Header Formatting. Extends email support for non-ASCII header data.
 - [RFC 2049](https://datatracker.ietf.org/doc/html/rfc2049) — MIME Part 5: MIME conformance. Minimal standard to be considered MIME comformant.
 - [RFC 2231](https://datatracker.ietf.org/doc/html/rfc2231) — MIME Parameter Value and Encoded Word Extensions. Defines extensions that address limitations in previous MIME RFCs. These mechanisms should be used only when necessary.
+- [RFC 2183](https://datatracker.ietf.org/doc/html/rfc2183) — Communicating Presentation Information in Internet Messages: The Content-Disposition Header Field. Attachments.
 - [RFC 5321](https://datatracker.ietf.org/doc/html/rfc5321) — Simple Mail Transfer Protocol
 
 Notes

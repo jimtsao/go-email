@@ -133,7 +133,7 @@ func TestIsMessageID(t *testing.T) {
 		"<" + specials + "@test>":      false,
 		"<test@" + specials + ">":      false,
 	} {
-		got := syntax.IsMessageID(s)
+		got := syntax.IsMsgID(s)
 		assert.Equalf(t, want, got, "%q", s)
 	}
 }
