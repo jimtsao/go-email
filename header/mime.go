@@ -1,9 +1,13 @@
 package header
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
+
+	"github.com/jimtsao/go-email/syntax"
 )
 
 // MIME Entity Headers
@@ -23,7 +27,6 @@ import (
 //		iana-token       :=   <A publicly-defined extension token. Tokens
 //		                      of this form must be registered with IANA
 //		                      as specified in RFC 2048.>
-
 //		encoding         :=   "Content-Transfer-Encoding" ":" mechanism
 //		mechanism        :=   "7bit" / "8bit" / "binary" /
 //		                      "quoted-printable" / "base64" /
@@ -58,12 +61,16 @@ import (
 //	                      "/" / "[" / "]" / "?" / "="
 type MIMEContentType struct {
 	ContentType string
-	Charset     string
+	Params      map[string]string
 }
 
 func (m *MIMEContentType) DetectFromContent(data []byte) {
 	ct := http.DetectContentType(data)
-	m.ContentType, m.Charset, _ = strings.Cut(ct, "; charset=")
+	ct, cs, _ := strings.Cut(ct, "; charset=")
+	m.ContentType = ct
+	if cs != "" {
+		m.Params["charset"] = cs
+	}
 }
 
 func (m *MIMEContentType) Name() string {
@@ -76,14 +83,14 @@ func (m *MIMEContentType) Validate() error {
 
 func (m *MIMEContentType) String() string {
 	s := fmt.Sprintf("%s: %s", m.Name(), m.ContentType)
-	if m.Charset != "" {
-		s += fmt.Sprintf("; charset=%s", m.Charset)
+	for attr, val := range m.Params {
+		s += fmt.Sprintf("; %s=\"%s\"", attr, val)
 	}
 	s += "\r\n"
 	return s
 }
 
-// MIMEEncoding represents the 'Content-Transfer-Encoding' header
+// MIMEContentTransferEncoding represents the 'Content-Transfer-Encoding' header
 //
 // Usage:
 //
@@ -95,16 +102,131 @@ func (m *MIMEContentType) String() string {
 //	mechanism  :=  "7bit" / "8bit" / "binary" /
 //	               "quoted-printable" / "base64" /
 //	               ietf-token / x-token
-type MIMEEncoding string
+type MIMEContentTransferEncoding string
 
-func (m MIMEEncoding) Name() string {
+func (m MIMEContentTransferEncoding) Name() string {
 	return "Content-Transfer-Encoding"
 }
 
-func (m MIMEEncoding) Validate() error {
+func (m MIMEContentTransferEncoding) Validate() error {
 	return nil
 }
 
-func (m MIMEEncoding) String() string {
+func (m MIMEContentTransferEncoding) String() string {
 	return fmt.Sprintf("%s: %s\r\n", m.Name(), string(m))
+}
+
+// MIMEContentID represents the 'Content-ID' header
+//
+// Syntax:
+//
+//	id := "Content-ID" ":" msg-id
+type MIMEContentID string
+
+func (m MIMEContentID) Name() string {
+	return "Content-ID"
+}
+
+func (m MIMEContentID) Validate() error {
+	// check line length
+	maxContentLen := maxLineLen - len(m.Name()+": ")
+	id := msgid(m).String()
+	if len(id) > maxContentLen {
+		return fmt.Errorf("content-id must not exceed %d octets, has %d octets", maxContentLen, len(id))
+	}
+
+	// chars
+	nameValid := IsValidHeaderName(m.Name())
+	valValid := IsValidHeaderValue(id)
+	if !nameValid && !valValid {
+		return fmt.Errorf("%s: invalid characters in header name and body", m.Name())
+	} else if !nameValid {
+		return fmt.Errorf("%s: invalid characters in header name", m.Name())
+	} else if !valValid {
+		return fmt.Errorf("%s: invalid characters in header body", m.Name())
+	}
+
+	// syntax
+	if !syntax.IsMsgID(id) {
+		return errors.New("content-id invalid syntax")
+	}
+
+	return nil
+}
+
+func (m MIMEContentID) String() string {
+	id := msgid(m).String()
+	return fmt.Sprintf("%s: %s\r\n", m.Name(), id)
+}
+
+type DispositionType string
+
+const (
+	Inline     DispositionType = "inline"
+	Attachment DispositionType = "attachment"
+)
+
+// MIMEContentDisposition represents the 'Content-Disposition' header
+//
+// Syntax:
+//
+//	disposition      := "Content-Disposition" ":" disposition-type
+//	                    *(";" disposition-parm)
+//	disposition-type := "inline" / "attachment" / extension-token
+//	                    ; values are not case-sensitive
+//	disposition-parm := filename-parm /
+//	                    creation-date-parm /
+//	                    modification-date-parm /
+//	                    read-date-parm /
+//	                    size-parm /
+//	                    parameter
+//
+//	filename-parm          := "filename" "=" value
+//	creation-date-parm     := "creation-date" "=" quoted-date-time
+//	modification-date-parm := "modification-date" "=" quoted-date-time
+//	read-date-parm         := "read-date" "=" quoted-date-time
+//	size-parm              := "size" "=" 1*DIGIT
+//	quoted-date-time       := quoted-string
+//	                          ; contents MUST be an RFC 822 `date-time'
+//	                          ; numeric timezones (+HHMM or -HHMM) MUST be used
+type MIMEContentDisposition struct {
+	Type             DispositionType
+	Filename         string
+	CreationDate     time.Time
+	Modificationdate time.Time
+	ReadDate         time.Time
+	Size             int // approximate size in octets
+}
+
+func (m MIMEContentDisposition) Name() string {
+	return "Content-Disposition"
+}
+
+func (m MIMEContentDisposition) Validate() error {
+	return nil
+}
+
+func (m MIMEContentDisposition) String() string {
+	s := fmt.Sprintf("%s: %s", m.Name(), m.Type)
+	if m.Filename != "" {
+		s += fmt.Sprintf("; filename=\"%s\"", m.Filename)
+	}
+	if !m.CreationDate.IsZero() {
+		t := datetime(m.CreationDate)
+		s += fmt.Sprintf("; creation-date=\"%s\"", t)
+	}
+	if !m.Modificationdate.IsZero() {
+		t := datetime(m.CreationDate)
+		s += fmt.Sprintf("; modification-date=\"%s\"", t)
+	}
+	if !m.ReadDate.IsZero() {
+		t := datetime(m.CreationDate)
+		s += fmt.Sprintf("; read-date=\"%s\"", t)
+	}
+	if m.Size > 0 {
+		s += fmt.Sprintf("; size=%d", m.Size)
+	}
+	s += "\r\n"
+
+	return s
 }
