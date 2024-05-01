@@ -44,7 +44,7 @@ func check(t *testing.T, fn func(string) bool, allowed ...string) {
 	}
 
 	// test against this charset
-	for i := 0; i < 255; i++ {
+	for i := 0; i < 256; i++ {
 		r := rune(i)
 		want := strings.ContainsRune(sb.String(), r)
 		got := fn(string(r))
