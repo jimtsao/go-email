@@ -20,14 +20,5 @@ func (dt datetime) String() string {
 type msgid string
 
 func (m msgid) String() string {
-	// trim whitespace and inserts @ and < > if needed
-	s := string(m)
-	s = strings.TrimSpace(s)
-	if !strings.Contains(s, "@") {
-		s = s + "@"
-	}
-	if !strings.Contains(s, "<") && !strings.Contains(s, ">") {
-		return "<" + s + ">"
-	}
-	return s
+	return strings.TrimSpace(string(m))
 }

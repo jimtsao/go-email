@@ -122,16 +122,27 @@ func TestIsNoFoldLiteral(t *testing.T) {
 
 func TestIsMessageID(t *testing.T) {
 	for s, want := range map[string]bool{
-		"<20241231.123=@example.net>":  true,
-		"<123@localhost.com>":          true,
-		"<2024.01.24@[" + dtext + "]>": true,
-		"<test@[]>":                    true,
-		"<@>":                          true,
-		"a":                            false,
-		"test@test>":                   false,
-		"<test@test":                   false,
-		"<" + specials + "@test>":      false,
-		"<test@" + specials + ">":      false,
+		// valid
+		"<left@right>":           true,
+		"<2024.12@127.0.0.1>":    true,
+		"<left@[]>":              true,
+		"<left@[" + dtext + "]>": true,
+		"<test@[]>":              true,
+
+		// invalid
+		"":                         false,
+		"one":                      false,
+		"<>":                       false,
+		"@":                        false,
+		"<@>":                      false,
+		"<one>":                    false,
+		"<left@>":                  false,
+		"<@right>":                 false,
+		"<.left@right>":            false,
+		"<left.@right>":            false,
+		"le<ft@ri>ght":             false,
+		"<" + specials + "@right>": false,
+		"<left@" + specials + ">":  false,
 	} {
 		got := syntax.IsMsgID(s)
 		assert.Equalf(t, want, got, "%q", s)

@@ -16,6 +16,8 @@ func TestMessageID(t *testing.T) {
 		longStr.WriteString("-")
 	}
 	ls := longStr.String()
+	max := fmt.Sprintf("<%s@%s>", ls[maxContentLen/2:], ls[:maxContentLen/2])
+	over := fmt.Sprintf("<%s@%s->", ls[maxContentLen/2:], ls[:maxContentLen/2])
 
 	type testcase struct {
 		input string
@@ -24,13 +26,9 @@ func TestMessageID(t *testing.T) {
 	}
 
 	for _, c := range []testcase{
-		{"<message@id>", "Message-ID: <message@id>\r\n", true},
-		{"message-id", "Message-ID: <message-id@>\r\n", true},
-		{"message@id", "Message-ID: <message@id>\r\n", true},
-		{ls, "Message-ID: " + fmt.Sprintf("<%s@>\r\n", ls), true},
-		{"messa<ge@i>d", "Message-ID: messa<ge@i>d\r\n", false},
-		{ls + "-", "Message-ID: " + fmt.Sprintf("<%s-@>\r\n", ls), false},
-		{"<in:valid@char>", "Message-ID: <in:valid@char>\r\n", false},
+		{"<one@two>", "Message-ID: <one@two>\r\n", true},
+		{max, fmt.Sprintf("Message-ID: %s\r\n", max), true},
+		{over, fmt.Sprintf("Message-ID: %s\r\n", over), false},
 	} {
 		{
 			m := header.MessageID(c.input)

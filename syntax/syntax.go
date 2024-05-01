@@ -136,7 +136,8 @@ func isDtext(b byte) bool {
 //	dot-atom-text = 1*atext *("." 1*atext)
 func IsDotAtomText(s string) bool {
 	dot := true
-	for i := 0; i < len(s); i++ {
+	var i int
+	for i = 0; i < len(s); i++ {
 		if s[i] == '.' && (i == 0 || i == len(s)-1) {
 			return false
 		}
@@ -146,7 +147,8 @@ func IsDotAtomText(s string) bool {
 		dot = s[i] != '.'
 	}
 
-	return true
+	// must be at least 1 valid character
+	return i != 0
 }
 
 func isDotAtomText(b byte, dot bool) bool {
