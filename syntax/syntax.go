@@ -2,6 +2,7 @@ package syntax
 
 import (
 	"strings"
+	"unicode"
 )
 
 func checker(s string, fn func(b byte) bool) bool {
@@ -134,6 +135,71 @@ func isDtext(b byte) bool {
 		return false
 	}
 	return isVchar(b)
+}
+
+// IsQuotedString:
+//
+//	quoted-string   =   DQUOTE *([FWS] qcontent) [FWS] DQUOTE
+//	qcontent        =   qtext / quoted-pair
+//	qtext           =   %d33 / %d35-91 / %d93-126
+//	quoted-pair     =   ("\" (VCHAR / WSP))
+//
+// qtext: printable ascii except \ and "
+func IsQuotedString(s string) bool {
+	// expect at least empty quoted string
+	if len(s) < 2 {
+		return false
+	}
+
+	// check qtext or quoted-pair
+	escaped := false
+	for i := 0; i < len(s); i++ {
+		if !isQuotedString(s[i], i == 0 || i == len(s)-1, escaped) {
+			return false
+		}
+
+		// toggle quoted-pair mode for next character
+		if !escaped && s[i] == '\\' {
+			escaped = true
+			continue
+		}
+
+		escaped = false
+	}
+
+	return true
+}
+
+func isQuotedString(b byte, dquote bool, escaped bool) bool {
+	// beginning or end of string
+	if dquote {
+		return !escaped && b == '"'
+	}
+
+	// quoted pair
+	if escaped {
+		return isWSP(b) || isVchar(b)
+	}
+
+	// qtext
+	return b != '"' && isVchar(b)
+}
+
+// IsWordEncodable:
+//
+//	Only printable and white space character data should be
+//	encoded using this scheme. RFC 2047 Section 5.
+func IsWordEncodable(s string) bool {
+	for _, r := range s {
+		if !isWordEncodable(r) {
+			return false
+		}
+	}
+	return true
+}
+
+func isWordEncodable(r rune) bool {
+	return r == '\t' || unicode.IsPrint(r)
 }
 
 // IsDotAtomText:

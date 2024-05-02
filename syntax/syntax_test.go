@@ -76,6 +76,36 @@ func TestIsDtext(t *testing.T) {
 	check(t, syntax.IsDtext, "33-90", "94-126")
 }
 
+func TestIsQuotedString(t *testing.T) {
+	for input, want := range map[string]bool{
+		`""`:                true,
+		`"foo"`:             true,
+		`"foo\\"`:           true,
+		`"\ \` + "\t" + `"`: true,
+		``:                  false,
+		`"foo`:              false,
+		`foo"`:              false,
+		`"foo\"`:            false,
+		`"foo bar"`:         false,
+	} {
+		got := syntax.IsQuotedString(input)
+		assert.Equalf(t, want, got, "%q", input)
+	}
+}
+
+func TestIsWordEncodable(t *testing.T) {
+	for input, want := range map[string]bool{
+		vchar:    true,
+		"\t ":    true,
+		"\r":     false,
+		"\n":     false,
+		"\u009C": false,
+	} {
+		got := syntax.IsWordEncodable(input)
+		assert.Equalf(t, want, got, "%q", input)
+	}
+}
+
 func TestIsDotAtomText(t *testing.T) {
 	for s, pass := range map[string]bool{
 		atext:        true,
