@@ -2,6 +2,9 @@ package header
 
 import (
 	"fmt"
+	"mime"
+
+	"github.com/jimtsao/go-email/syntax"
 )
 
 // CustomHeader represents an optional field header
@@ -25,9 +28,14 @@ func (u CustomHeader) Name() string {
 }
 
 func (u CustomHeader) Validate() error {
+	if !syntax.IsWordEncodable(u.Value) {
+		return fmt.Errorf("%s must contain only printable or white space characters", u.Name())
+	}
+
 	return nil
 }
 
 func (u CustomHeader) String() string {
-	return fmt.Sprintf("%s: %s\r\n", u.Name(), u.Value)
+	v := mime.QEncoding.Encode("utf-8", string(u.Value))
+	return fmt.Sprintf("%s: %s\r\n", u.Name(), v)
 }
