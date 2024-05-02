@@ -13,11 +13,9 @@ func checker(s string, fn func(b byte) bool) bool {
 	return true
 }
 
-// IsVchar definition:
+// IsVchar:
 //
-//	VCHAR = %d33-126
-//
-// printable ascii
+//	VCHAR = %d33-126 ; printable ascii
 func IsVchar(s string) bool {
 	return checker(s, isVchar)
 }
@@ -26,7 +24,20 @@ func isVchar(b byte) bool {
 	return '!' <= b && b <= '~'
 }
 
-// CTL   =   %d0-31 / %d127
+// IsWSP:
+//
+//	WSP = SP / HTAB
+func IsWSP(s string) bool {
+	return checker(s, isWSP)
+}
+
+func isWSP(b byte) bool {
+	return b == ' ' || b == '\t'
+}
+
+// CTL:
+//
+//	CTL = %d0-31 / %d127 ; control characters
 func IsCTL(s string) bool {
 	return checker(s, isCTL)
 }
@@ -35,7 +46,7 @@ func isCTL(b byte) bool {
 	return b <= 31 || b == 127
 }
 
-// IsSpecials RFC 5322 definition:
+// IsSpecials (RFC 5322):
 //
 //	specials   =   "(" / ")" / "<" / ">" / "[" / "]" /
 //	               ":" / ";" / "@" / "\" / "," / "." /
@@ -62,7 +73,7 @@ func isSpecials(b byte) bool {
 	return false
 }
 
-// IsTSpecials RFC2045 definition:
+// IsTSpecials (RFC 2045):
 //
 //	tspecials :=  "(" / ")" / "<" / ">" / "@" /
 //	              "," / ";" / ":" / "\" / <"> /
@@ -94,14 +105,8 @@ func isTSpecials(b byte) bool {
 //				"*" / "+" / "-" / "/" / "=" / "?" /
 //				"^" / "_" / "`" / "{" / "|" / "}" /
 //				"~"
-//	ALPHA   =   %d65-90 / %d97-122
-//	DIGIT   =   %d48-57
 //
-// atext: VCHAR excluding specials
-//
-// ALPHA: A-Z a-z
-//
-// DIGIT: 0-9
+// printable ascii excluding specials
 func IsAtext(s string) bool {
 	return checker(s, isAtext)
 }
@@ -118,7 +123,7 @@ func isAtext(b byte) bool {
 //
 //	dtext = %d33-90, %d94-126
 //
-// printable ascii excluding "[", "]", or "\"
+// printable ascii excluding "[", "]" and "\"
 func IsDtext(s string) bool {
 	return checker(s, isDtext)
 }
