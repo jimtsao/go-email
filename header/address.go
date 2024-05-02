@@ -64,11 +64,27 @@ func (a Address) Name() string {
 }
 
 func (a Address) Validate() error {
-	if addrs, err := mail.ParseAddressList(a.Value); err != nil {
+	// parse addresses
+	addrs, err := mail.ParseAddressList(a.Value)
+	if err != nil {
 		return fmt.Errorf("%s: %w", a.Field, err)
-	} else if a.Field == AddressSender && len(addrs) > 1 {
+	}
+
+	// check sender only 1 single address
+	if a.Field == AddressSender && len(addrs) > 1 {
 		return fmt.Errorf("%s: %s", a.Field, "must not contain more than 1 address")
 	}
+
+	// smtp restriction: local-part max 64 octets, domain max 255 octets
+	for _, addr := range addrs {
+		local, domain, _ := strings.Cut(addr.Address, "@")
+		if len(local) > 64 {
+			return fmt.Errorf("%s: address part exceeds max length 64 bytes (%q)", a.Name(), local)
+		} else if len(domain) > 255 {
+			return fmt.Errorf("%s: address part exceeds max length 255 bytes (%q)", a.Name(), domain)
+		}
+	}
+
 	return nil
 }
 
