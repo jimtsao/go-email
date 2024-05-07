@@ -76,6 +76,10 @@ func TestIsDtext(t *testing.T) {
 	check(t, syntax.IsDtext, "33-90", "94-126")
 }
 
+func TestIsFtext(t *testing.T) {
+	check(t, syntax.IsFtext, "33-57", "59-126")
+}
+
 func TestIsQuotedString(t *testing.T) {
 	for input, want := range map[string]bool{
 		`""`:                true,

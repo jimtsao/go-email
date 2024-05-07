@@ -1,12 +1,5 @@
 package header
 
-import (
-	"fmt"
-	"mime"
-
-	"github.com/jimtsao/go-email/syntax"
-)
-
 // Subject represents the 'Date' header field
 //
 // Syntax:
@@ -25,14 +18,17 @@ func (s Subject) Name() string {
 // and satisfy 'unstructured' definition, we check that
 // it can be word encoded instead
 func (s Subject) Validate() error {
-	if !syntax.IsWordEncodable(string(s)) {
-		return fmt.Errorf("%s must contain only printable or white space characters", s.Name())
-	}
-
-	return nil
+	return CustomHeader{
+		FieldName:    s.Name(),
+		Value:        string(s),
+		WordEncoding: true,
+	}.Validate()
 }
 
 func (s Subject) String() string {
-	sj := mime.QEncoding.Encode("utf-8", string(s))
-	return fmt.Sprintf("%s: %s\r\n", s.Name(), sj)
+	return CustomHeader{
+		FieldName:    s.Name(),
+		Value:        string(s),
+		WordEncoding: true,
+	}.String()
 }

@@ -2,12 +2,11 @@ package header
 
 import (
 	"fmt"
-	"mime"
-
-	"github.com/jimtsao/go-email/syntax"
 )
 
-// CustomHeader represents an optional field header
+// CustomHeader represents an optional field header.
+// WordEncoding can be optionally enabled for an
+// Extension or user defined X-* header field
 //
 // Syntax:
 //
@@ -18,24 +17,24 @@ import (
 //
 // ftext: printable ascii except colon
 type CustomHeader struct {
-	FieldName string
-	Value     string
+	FieldName    string
+	Value        string
+	WordEncoding bool
 }
 
-// Name returns canonical form of header name
+// Name returns header name
 func (u CustomHeader) Name() string {
-	return CanonicalHeaderKey(u.FieldName)
+	return u.FieldName
 }
 
 func (u CustomHeader) Validate() error {
-	if !syntax.IsWordEncodable(u.Value) {
-		return fmt.Errorf("%s must contain only printable or white space characters", u.Name())
+	if err := unstructured(u.Value).validate(u.WordEncoding); err != nil {
+		return fmt.Errorf("%s: %w", u.Name(), err)
 	}
-
 	return nil
 }
 
 func (u CustomHeader) String() string {
-	v := mime.QEncoding.Encode("utf-8", string(u.Value))
+	v := unstructured(u.Value).string(u.WordEncoding)
 	return fmt.Sprintf("%s: %s\r\n", u.Name(), v)
 }
