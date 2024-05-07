@@ -137,6 +137,19 @@ func isDtext(b byte) bool {
 	return isVchar(b)
 }
 
+// IsFtext:
+//
+// ftext = %d33-57 / %d59-126
+//
+// printable ascii excluding ":"
+func IsFtext(s string) bool {
+	return checker(s, isFtext)
+}
+
+func isFtext(b byte) bool {
+	return b != ':' && isVchar(b)
+}
+
 // IsQuotedString:
 //
 //	quoted-string   =   DQUOTE *([FWS] qcontent) [FWS] DQUOTE

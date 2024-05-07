@@ -44,7 +44,7 @@ func check(t *testing.T, fn func(string) bool, allowed ...string) {
 	}
 
 	// test against this charset
-	for i := 0; i < 255; i++ {
+	for i := 0; i < 256; i++ {
 		r := rune(i)
 		want := strings.ContainsRune(sb.String(), r)
 		got := fn(string(r))
@@ -74,6 +74,10 @@ func TestIsAtext(t *testing.T) {
 
 func TestIsDtext(t *testing.T) {
 	check(t, syntax.IsDtext, "33-90", "94-126")
+}
+
+func TestIsFtext(t *testing.T) {
+	check(t, syntax.IsFtext, "33-57", "59-126")
 }
 
 func TestIsQuotedString(t *testing.T) {
