@@ -130,7 +130,7 @@ func (m MIMEContentID) Name() string {
 func (m MIMEContentID) Validate() error {
 	// check line length
 	maxContentLen := maxLineLen - len(m.Name()+": ")
-	id := msgid(m).String()
+	id := string(m)
 	if len(id) > maxContentLen {
 		return fmt.Errorf("content-id must not exceed %d octets, has %d octets", maxContentLen, len(id))
 	}
@@ -155,7 +155,7 @@ func (m MIMEContentID) Validate() error {
 }
 
 func (m MIMEContentID) String() string {
-	id := msgid(m).String()
+	id := string(m)
 	return fmt.Sprintf("%s: %s\r\n", m.Name(), id)
 }
 

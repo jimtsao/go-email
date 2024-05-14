@@ -1,24 +1,17 @@
 package header
 
-// Date represents the 'Date' header field
-//
-// Syntax:
-//
 import (
-	"errors"
 	"fmt"
+	"strings"
 
-	"github.com/jimtsao/go-email/syntax"
+	"github.com/jimtsao/go-email/folder"
 )
 
 // MessageID represents the 'Message-ID' header field.
 //
-// Automatically inserts @ and wraps in angle brackets if required
-//
 // Usage:
 //
 //	m := MessageID("<2024.12.31@localhost>")
-//	m := MessageID("unique") // becomes <unique@>
 //
 // Syntax:
 //
@@ -42,16 +35,14 @@ func (m MessageID) Name() string {
 }
 
 func (m MessageID) Validate() error {
-	// folding not permitted within actual content of msg-id
-	maxContentLen := maxLineLen - len(m.Name()+": ")
-	id := msgid(m).String()
-	if len(id) > maxContentLen {
-		return fmt.Errorf("message-id must not exceed %d octets, has %d octets", maxContentLen, len(id))
+	id := msgid(m)
+	if err := id.validate(); err != nil {
+		return fmt.Errorf("%s: %w", m.Name(), err)
 	}
 
 	// chars
 	nameValid := IsValidHeaderName(m.Name())
-	valValid := IsValidHeaderValue(id)
+	valValid := IsValidHeaderValue(id.string())
 	if !nameValid && !valValid {
 		return fmt.Errorf("%s: invalid characters in header name and body", m.Name())
 	} else if !nameValid {
@@ -60,15 +51,14 @@ func (m MessageID) Validate() error {
 		return fmt.Errorf("%s: invalid characters in header body", m.Name())
 	}
 
-	// syntax
-	if !syntax.IsMsgID(id) {
-		return errors.New("message-id invalid syntax")
-	}
-
 	return nil
 }
 
 func (m MessageID) String() string {
-	id := msgid(m).String()
-	return fmt.Sprintf("Message-ID: %s\r\n", id)
+	id := msgid(m).string()
+	sb := &strings.Builder{}
+	f := folder.New(sb)
+	f.Write(m.Name()+":", 1, " ", id)
+	f.Close()
+	return sb.String()
 }
