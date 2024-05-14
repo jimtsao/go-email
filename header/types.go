@@ -12,8 +12,6 @@ import (
 	"github.com/jimtsao/go-email/syntax"
 )
 
-const maxLineLen = 998
-
 const time_RFC5322 = "Mon, 2 Jan 2006 15:04:05 -0700"
 
 type datetime time.Time
