@@ -5,7 +5,6 @@ package header
 import (
 	"errors"
 	"fmt"
-	"mime"
 	"strings"
 	"time"
 
@@ -43,25 +42,4 @@ func (m msgid) validate() error {
 
 func (m msgid) string() string {
 	return strings.TrimSpace(string(m))
-}
-
-type unstructured string
-
-func (u unstructured) validate(encode bool) error {
-	v := string(u)
-	if encode {
-		if strings.Contains(v, ":") || !syntax.IsWordEncodable(v) {
-			return errors.New("must contain only printable or white space characters and no colon")
-		}
-	} else if !syntax.IsFtext(v) {
-		return errors.New("invalid syntax")
-	}
-	return nil
-}
-
-func (u unstructured) string(encode bool) string {
-	if encode {
-		return mime.QEncoding.Encode("utf-8", string(u))
-	}
-	return string(u)
 }
