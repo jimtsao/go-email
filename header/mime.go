@@ -1,13 +1,12 @@
 package header
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/jimtsao/go-email/syntax"
+	"github.com/jimtsao/go-email/folder"
 )
 
 // MIME Entity Headers
@@ -120,7 +119,8 @@ func (m MIMEContentTransferEncoding) String() string {
 //
 // Syntax:
 //
-//	id := "Content-ID" ":" msg-id
+//	content-id = "Content-ID" ":" msg-id
+//	msg-id     = [CFWS] "<" id-left "@" id-right ">" [CFWS]
 type MIMEContentID string
 
 func (m MIMEContentID) Name() string {
@@ -128,16 +128,14 @@ func (m MIMEContentID) Name() string {
 }
 
 func (m MIMEContentID) Validate() error {
-	// check line length
-	maxContentLen := maxLineLen - len(m.Name()+": ")
-	id := msgid(m).String()
-	if len(id) > maxContentLen {
-		return fmt.Errorf("content-id must not exceed %d octets, has %d octets", maxContentLen, len(id))
+	id := msgid(m)
+	if err := id.validate(); err != nil {
+		return fmt.Errorf("%s: %w", m.Name(), err)
 	}
 
 	// chars
 	nameValid := IsValidHeaderName(m.Name())
-	valValid := IsValidHeaderValue(id)
+	valValid := IsValidHeaderValue(id.string())
 	if !nameValid && !valValid {
 		return fmt.Errorf("%s: invalid characters in header name and body", m.Name())
 	} else if !nameValid {
@@ -146,17 +144,16 @@ func (m MIMEContentID) Validate() error {
 		return fmt.Errorf("%s: invalid characters in header body", m.Name())
 	}
 
-	// syntax
-	if !syntax.IsMsgID(id) {
-		return errors.New("content-id invalid syntax")
-	}
-
 	return nil
 }
 
 func (m MIMEContentID) String() string {
-	id := msgid(m).String()
-	return fmt.Sprintf("%s: %s\r\n", m.Name(), id)
+	id := msgid(m).string()
+	sb := &strings.Builder{}
+	f := folder.New(sb)
+	f.Write(m.Name()+":", 1, " ", id)
+	f.Close()
+	return sb.String()
 }
 
 type DispositionType string

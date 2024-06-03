@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/mail"
 	"strings"
+
+	"github.com/jimtsao/go-email/folder"
 )
 
 type AddressField string
@@ -25,7 +27,7 @@ const (
 //	addr := Address{Field: AddressTo, Value: "alice@secret.com, bob@secret.com"}
 //	addr := Address{Field: AddressBcc, Value: "Eavesdrop Eve <eve@secret.com>"}
 //
-// note: domain literals and groups are not currently supported
+// note: Domain literals and groups are not supported
 //
 // Syntax:
 //
@@ -48,10 +50,12 @@ const (
 //	mailbox-list    =   (mailbox *("," mailbox))
 //	address-list    =   (address *("," address))
 //	group-list      =   mailbox-list / CFWS
-//	phrase          =   1*word
+//	phrase          =   1*(word / encoded-word)
 //	word            =   atom / quoted-string
 //	atom            =   [CFWS] 1*atext [CFWS]
-//	quoted-string   =   DQUOTE *([FWS] qcontent) [FWS] DQUOTE
+//	dot-atom        =   [CFWS] dot-atom-text [CFWS]
+//	dot-atom-text   =   1*atext *("." 1*atext)
+//	quoted-string   =   [CFWS] DQUOTE *([FWS] qcontent) [FWS] DQUOTE [CFWS]
 //	qcontent        =   qtext / quoted-pair
 //	qtext           =   %d33 / %d35-91 / %d93-126
 type Address struct {
@@ -89,30 +93,82 @@ func (a Address) Validate() error {
 }
 
 func (a Address) String() string {
-	var val string
+	sb := &strings.Builder{}
+	f := folder.New(sb)
+	f.Write(a.Name() + ": ")
+	var fallback string
 
 	switch a.Field {
 	case AddressSender:
 		// single address
 		if addr, err := mail.ParseAddress(a.Value); err != nil {
-			val = a.Value
+			fallback = a.Value
 		} else {
-			val = addr.String()
+			a.writeAddress(addr, f)
 		}
 	case AddressFrom, AddressReplyTo, AddressTo, AddressCc, AddressBcc:
 		// multiple address
 		if addrs, err := mail.ParseAddressList(a.Value); err != nil {
-			val = a.Value
+			fallback = a.Value
 		} else {
-			formatted := []string{}
-			for _, addr := range addrs {
-				formatted = append(formatted, addr.String())
+			for i := 0; i < len(addrs); i++ {
+				if i > 0 {
+					f.Write(",")
+				}
+				a.writeAddress(addrs[i], f)
 			}
-			val = strings.Join(formatted, ",")
 		}
 	default:
-		val = a.Value
+		fallback = a.Value
 	}
 
-	return fmt.Sprintf("%s: %s\r\n", a.Field, val)
+	if fallback != "" || f.Err != nil {
+		return fmt.Sprintf("%s: %s\r\n", a.Field, fallback)
+	}
+
+	f.Close()
+	return sb.String()
+}
+
+func (a Address) writeAddress(addr *mail.Address, f *folder.Folder) {
+	// net/mail address ouputs 'quoted-string angle-addr' or 'encoded-word angle-addr' format
+	var q, e, d string
+
+	// local part
+	if addr.Name != "" {
+		local := (&mail.Address{Name: addr.Name}).String()
+		local = local[:len(local)-len(" <@>")]
+		if len(local) > 8 && local[:8] == "=?utf-8?" {
+			e = local
+		} else {
+			q = local
+		}
+	}
+
+	// domain part
+	if addr.Address != "" {
+		d = (&mail.Address{Address: addr.Address}).String()
+	}
+
+	// write to encoder
+	if q != "" {
+		// quoted string: [CFWS] DQUOTE *([FWS] qcontent) [FWS] DQUOTE [CFWS]
+		// format: [1]quoted[3][space]string[2][space]angle-addr[1]
+		f.Write(1)
+		for idx, qp := range strings.Split(q, " ") {
+			if idx > 0 {
+				f.Write(3, " ")
+			}
+			f.Write(qp)
+		}
+		f.Write(2, " ", d, 1)
+	} else if e != "" {
+		// encoded-word: [CFWS] between encoded words (whereby upon parsing space is ignored)
+		// format: encoded-word[2][space]angle-addr[1]
+		f.Write(e, 2, " ", d, 1)
+	} else {
+		// angle-addr: [CFWS] "<" local @ domain ">" [CFWS]
+		// format: [1]<addr-spec>[1]
+		f.Write(1, d, 1)
+	}
 }

@@ -1,6 +1,6 @@
 package header
 
-// Subject represents the 'Date' header field
+// Subject represents the 'Subject' header field
 //
 // Syntax:
 //
@@ -19,16 +19,16 @@ func (s Subject) Name() string {
 // it can be word encoded instead
 func (s Subject) Validate() error {
 	return CustomHeader{
-		FieldName:    s.Name(),
-		Value:        string(s),
-		WordEncoding: true,
+		FieldName:     s.Name(),
+		Value:         string(s),
+		WordEncodable: true,
 	}.Validate()
 }
 
 func (s Subject) String() string {
 	return CustomHeader{
-		FieldName:    s.Name(),
-		Value:        string(s),
-		WordEncoding: true,
+		FieldName:     s.Name(),
+		Value:         string(s),
+		WordEncodable: true,
 	}.String()
 }

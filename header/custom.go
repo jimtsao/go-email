@@ -2,6 +2,10 @@ package header
 
 import (
 	"fmt"
+	"strings"
+
+	"github.com/jimtsao/go-email/folder"
+	"github.com/jimtsao/go-email/syntax"
 )
 
 // CustomHeader represents an optional field header.
@@ -17,9 +21,9 @@ import (
 //
 // ftext: printable ascii except colon
 type CustomHeader struct {
-	FieldName    string
-	Value        string
-	WordEncoding bool
+	FieldName     string
+	Value         string
+	WordEncodable bool
 }
 
 // Name returns header name
@@ -28,13 +32,30 @@ func (u CustomHeader) Name() string {
 }
 
 func (u CustomHeader) Validate() error {
-	if err := unstructured(u.Value).validate(u.WordEncoding); err != nil {
-		return fmt.Errorf("%s: %w", u.Name(), err)
+	if strings.Contains(u.Value, ":") {
+		return fmt.Errorf("%s must not contain a colon", u.FieldName)
+	}
+
+	if u.WordEncodable && !syntax.IsWordEncodable(u.Value) {
+		return fmt.Errorf("%s must contain only printable or white space characters", u.FieldName)
+	}
+
+	if !syntax.IsFtext(u.FieldName) {
+		return fmt.Errorf("%s invalid syntax", u.FieldName)
 	}
 	return nil
 }
 
 func (u CustomHeader) String() string {
-	v := unstructured(u.Value).string(u.WordEncoding)
-	return fmt.Sprintf("%s: %s\r\n", u.Name(), v)
+	sb := &strings.Builder{}
+	f := folder.New(sb)
+	f.Write(u.Name()+":", 1, " ")
+	if u.WordEncodable {
+		we := folder.WordEncodable(u.Value)
+		f.Write(we)
+	} else {
+		f.Write(u.Value)
+	}
+	f.Close()
+	return sb.String()
 }
