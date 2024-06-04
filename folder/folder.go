@@ -18,12 +18,6 @@ const leastPriorityToken = math.MaxInt
 var fwsToken = "\r\n "
 var spaceLen = len(" ")
 
-// WordEncodable represents a string that can be conditionally encoded
-// in order to utilise encoded word splitting where a foldable white space
-// may not otherwise be present. Encoded word splitting has least priority.
-// non us-ascii will trigger encoding.
-type WordEncodable string
-
 type Folder struct {
 	Err     error // io.Writer error
 	w       io.Writer
