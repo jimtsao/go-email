@@ -80,6 +80,12 @@ func TestIsFtext(t *testing.T) {
 	check(t, syntax.IsFtext, "33-57", "59-126")
 }
 
+func TestIsMIMEParamAttributeChar(t *testing.T) {
+	check(t, syntax.IsMIMEParamAttributeChar,
+		"33", "35", "36", "38", "43", "45",
+		"46", "48-57", "65-90", "94-126")
+}
+
 func TestIsQuotedString(t *testing.T) {
 	for input, want := range map[string]bool{
 		`""`:                true,

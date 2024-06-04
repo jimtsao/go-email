@@ -150,6 +150,20 @@ func isFtext(b byte) bool {
 	return b != ':' && isVchar(b)
 }
 
+// IsMIMEParamAttributeChar:
+//
+//	attribute-char := <any (US-ASCII) CHAR except SPACE,
+//	                  CTLs, "*", "'", "%", or tspecials>
+func IsMIMEParamAttributeChar(s string) bool {
+	return checker(s, isMIMEParamAttributeChar)
+}
+
+func isMIMEParamAttributeChar(b byte) bool {
+	return b <= '~' && b != ' ' && b != '*' &&
+		b != '\'' && b != '%' &&
+		!isCTL(b) && !isTSpecials(b)
+}
+
 // IsQuotedString:
 //
 //	quoted-string   =   DQUOTE *([FWS] qcontent) [FWS] DQUOTE
