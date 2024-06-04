@@ -73,7 +73,7 @@ func TestAddressFold(t *testing.T) {
 		// encoded-word: encoded-word[2][space]angle-addr[1]
 		{desc: "encoded word",
 			input: "éiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii <a@b>",
-			want:  "=?utf-8?q?=C3=A9iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii?=\r\n =?utf-8?q?iiiii?= <a@b>"},
+			want:  "=?utf-8?q?=C3=A9iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii?=\r\n =?utf-8?q?iiiiii?= <a@b>"},
 	} {
 		a := header.Address{Field: header.AddressTo, Value: c.input}
 		err := a.Validate()

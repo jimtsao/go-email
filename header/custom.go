@@ -2,6 +2,7 @@ package header
 
 import (
 	"fmt"
+	"mime"
 	"strings"
 
 	"github.com/jimtsao/go-email/folder"
@@ -51,7 +52,7 @@ func (u CustomHeader) String() string {
 	f := folder.New(sb)
 	f.Write(u.Name()+":", 1, " ")
 	if u.WordEncodable {
-		we := folder.WordEncodable(u.Value)
+		we := folder.NewWordEncodable(u.Value, mime.QEncoding, false)
 		f.Write(we)
 	} else {
 		f.Write(u.Value)

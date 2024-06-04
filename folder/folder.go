@@ -2,21 +2,22 @@
 package folder
 
 import (
-	"encoding/base64"
-	"fmt"
 	"io"
-	"math"
-	"mime"
 	"strings"
-	"unicode/utf8"
 )
 
 const maxLineLen = 78 // octets, excluding CRLF
 
-const leastPriorityToken = math.MaxInt
-
 var fwsToken = "\r\n "
 var spaceLen = len(" ")
+
+type Foldable interface {
+	// value before optional transformations that may take place
+	// upon folding
+	Value() string // value before optional transformations
+	Length() int   // length of Value
+	Fold(limit int) (split string, rest Foldable, didFold bool)
+}
 
 type Folder struct {
 	Err     error // io.Writer error
@@ -35,24 +36,19 @@ func New(w io.Writer) *Folder {
 	return &Folder{w: w, acc: []interface{}{}}
 }
 
-// Write expects a list of header string values and folding white space integer
-// values, where lower int values takes precedence over higher values.
+// Write expects a list of header string values and folding white space
+// integer values, where lower int values takes precedence over higher values.
 //
 // The positioning of integer values signifies where folding may occur.
 // If no int is specified, no folding will occur.
 //
-// (1) An ascii space preceded by an integer will be treated as an optionally foldable
-// white space. For example::
+// (1) An ascii space preceded by an integer will be treated as an optionally
+// foldable white space. For example::
 //
 //	e.Write("foo", 2, " ", "bar", 1, "baz") => foo bar\r\n baz
 //	e.Write("foo", 1, "bar", "baz") => foobar\r\n baz
 //
-// (2) utf-8 encoded words i.e. =?utf-8?...?= may be decoded, split then re-encoded into multiple
-// encoded word tokens where line limit is exceeded. Splitting only occurs as last resort.
-//
-// (3) use special token type WordEncodable to allow conditional word encoding. This is useful
-// for strings that do not otherwise contain a foldable white space but can be word encoded
-// to facilitate unlimited folding
+// (2) accepts any token that conforms to Foldable interface
 func (f *Folder) Write(tokens ...interface{}) {
 	// checks
 	if f.Err != nil || f.closed {
@@ -60,7 +56,6 @@ func (f *Folder) Write(tokens ...interface{}) {
 	}
 
 	// push to accumulator
-	dec := mime.WordDecoder{}
 	for _, tok := range tokens {
 		if f.Err != nil {
 			return
@@ -69,32 +64,8 @@ func (f *Folder) Write(tokens ...interface{}) {
 		switch v := tok.(type) {
 		case int:
 			f.acc = append(f.acc, v)
-		case string:
-			if dword, err := dec.DecodeHeader(v); err == nil && dword != v {
-				// encoded words: split and append
-				ewords := strings.Split(v, " ")
-				for idx, eword := range ewords {
-					if idx == 0 {
-						f.acc = append(f.acc, eword)
-					} else {
-						f.acc = append(f.acc, leastPriorityToken, " ", eword)
-					}
-				}
-			} else {
-				f.acc = append(f.acc, v)
-			}
-
-			// fold if required
-			f.fold()
-		case WordEncodable:
-			val := mime.QEncoding.Encode("utf-8", string(v))
-			if val == string(v) {
-				// us-ascii only chars
-				f.acc = append(f.acc, v)
-			} else {
-				// requires encoding
-				f.acc = append(f.acc, val)
-			}
+		case string, Foldable:
+			f.acc = append(f.acc, v)
 			f.fold()
 		}
 	}
@@ -107,8 +78,8 @@ func (f *Folder) flush() {
 		switch v := tok.(type) {
 		case string:
 			toWrite += v
-		case WordEncodable:
-			toWrite += string(v)
+		case Foldable:
+			toWrite += v.Value()
 		}
 	}
 
@@ -120,7 +91,8 @@ func (f *Folder) flush() {
 	f.acc = []interface{}{}
 }
 
-// fold as many times as needed, consumes tokens from accumulator and tracks written length
+// fold as many times as needed, consumes tokens from accumulator
+// and recalculates new written length
 func (f *Folder) fold() {
 	// find first string where line length is exceeded, and
 	// highest priority delimiter up to that token
@@ -136,12 +108,15 @@ func (f *Folder) fold() {
 			} else if v < delim {
 				delim = v
 			}
-		case string, WordEncodable:
-			if val, ok := v.(string); ok {
-				currentLen += len(val)
-			} else if val, ok := v.(WordEncodable); ok {
-				currentLen += len(val)
+		case string:
+			currentLen += len(v)
+			if currentLen > maxLineLen {
+				exceededAt = idx
+				needsFold = true
+				break
 			}
+		case Foldable:
+			currentLen += v.Length()
 			if currentLen > maxLineLen {
 				exceededAt = idx
 				needsFold = true
@@ -182,57 +157,45 @@ func (f *Folder) fold() {
 				f.acc = f.acc[1:]
 			}
 
-			goto FOLDED
-		case string, WordEncodable:
+			// keep trying to fold
+			f.written = spaceLen
+			f.fold()
+			return
+		case string:
+			currentLen -= len(v)
+		case Foldable:
 			// keep track of current len (written + len of strings up to index)
-			if val, ok := v.(string); ok {
-				currentLen -= len(val)
-			} else if val, ok := v.(WordEncodable); ok {
-				currentLen -= len(val)
-			}
+			currentLen -= v.Length()
 
 			// continue to next token until we find delimiter
 			if delimFound {
 				continue
 			}
 
-			// no delimiters to fold at, check if we can split the encoded word
-			parts, didSplit := splitEncodedWord(v, maxLineLen-currentLen)
-			if !didSplit {
+			// no delimiters to fold at, try to fold current token
+			split, rest, didFold := v.Fold(maxLineLen - currentLen)
+			if !didFold {
 				continue
 			}
 
-			// write all split parts except last one
+			// write the split part
 			oldAcc := f.acc
 			remAcc := f.acc[exceededAt+1:]
-			for i := 0; i < len(parts); i++ {
-				if i == 0 {
-					// first part
-					f.acc = f.acc[:exceededAt]
-				} else if i == len(parts)-1 {
-					// last part
-					f.acc = append([]interface{}{parts[i]}, remAcc...)
-					continue
-				}
-
-				f.acc = append(f.acc, parts[i], fwsToken)
-				if f.flush(); f.Err != nil {
-					f.acc = oldAcc
-					return
-				}
+			f.acc = append(f.acc[:exceededAt], split, fwsToken)
+			if f.flush(); f.Err != nil {
+				f.acc = oldAcc
+				return
 			}
 
-			goto FOLDED
+			// set remaining as new accumulator
+			f.acc = append([]interface{}{rest}, remAcc...)
+
+			// keep folding
+			f.written = spaceLen
+			f.fold()
+			return
 		}
 
-		continue
-
-	FOLDED:
-		f.written = spaceLen
-
-		// keep folding, tokens remaining in accumulator may still exceed max line length
-		f.fold()
-		return
 	}
 }
 
@@ -243,10 +206,13 @@ func (f *Folder) canFold(i int) bool {
 	var lok, rok bool
 	for idx := 0; idx < len(f.acc); idx++ {
 		var val string
-		if v, ok := f.acc[idx].(string); ok {
+		switch v := f.acc[idx].(type) {
+		case string:
 			val = v
-		} else if v, ok := f.acc[idx].(WordEncodable); ok {
-			val = string(v)
+		case Foldable:
+			val = v.Value()
+		default:
+			continue
 		}
 
 		if strings.TrimLeft(val, "\t ") != "" {
@@ -277,96 +243,4 @@ func (f *Folder) Close() {
 	}
 
 	f.closed = true
-}
-
-// splits encoded word so first part is within specified octet limit
-//
-// max limit is determined by encoding where quoted-string is 75 octets
-// and base64 by maxLineLen
-func splitEncodedWord(word interface{}, limit int) ([]string, bool) {
-	var dword string
-	enc := mime.QEncoding
-	if v, ok := word.(string); ok {
-		// check if encoded word
-		dec := &mime.WordDecoder{}
-		dw, err := dec.Decode(v)
-		if err != nil {
-			return nil, false
-		}
-		dword = dw
-
-		// check which encoding
-		switch v[len("=?utf-8") : len("=?utf-8")+3] {
-		case "?b?", "?B?":
-			enc = mime.BEncoding
-		}
-	} else if v, ok := word.(WordEncodable); ok {
-		dword = string(v)
-	}
-
-	// adjust limit if needed
-	var maxContentLen int
-	if enc == mime.QEncoding {
-		if limit > 75 {
-			limit = 75
-		}
-		maxContentLen = limit - len("=?utf-8?q?") - len("?=")
-	} else {
-		if limit > maxLineLen {
-			limit = maxLineLen
-		}
-		maxContentLen = limit - len("=?utf-8?q?") - len("?=")
-		maxContentLen = base64.StdEncoding.DecodedLen(maxContentLen)
-	}
-
-	// quick splittable check
-	if maxContentLen <= 0 {
-		return nil, false
-	}
-
-	// go rune by rune
-	var runeLen int
-	for i := 0; i < len(dword); i += runeLen {
-		// figure out encoded length of rune
-		var encLen int
-		b := dword[i]
-		if enc == mime.QEncoding {
-			if b >= ' ' && b <= '~' && b != '=' && b != '?' && b != '_' {
-				runeLen, encLen = 1, 1
-			} else {
-				_, runeLen = utf8.DecodeRuneInString(dword[i:])
-				encLen = 3 * runeLen
-			}
-		} else {
-			_, runeLen = utf8.DecodeRuneInString(dword[i:])
-			encLen = runeLen
-		}
-
-		// split if this rune will exceed limit
-		if encLen > maxContentLen {
-			// unable to split even 1 rune and stay within limit
-			if i == 0 {
-				return nil, false
-			}
-			split := forceEncode(enc, dword[:i])
-			rem := forceEncode(enc, dword[i:])
-			parts := strings.Split(rem, " ")
-			return append([]string{split}, parts...), true
-		}
-
-		// otherwise continue onto next rune
-		maxContentLen -= encLen
-	}
-
-	// limit not reached, no need to split
-	return nil, false
-}
-
-func forceEncode(enc mime.WordEncoder, val string) string {
-	if enc == mime.QEncoding {
-		val = enc.Encode("utf-8", "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"+val)
-		return val[76:]
-	}
-
-	return fmt.Sprintf("=?utf-8?b?%s?=", base64.StdEncoding.EncodeToString([]byte(val)))
 }

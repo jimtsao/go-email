@@ -2,6 +2,7 @@ package header
 
 import (
 	"fmt"
+	"mime"
 	"net/mail"
 	"strings"
 
@@ -165,7 +166,9 @@ func (a Address) writeAddress(addr *mail.Address, f *folder.Folder) {
 	} else if e != "" {
 		// encoded-word: [CFWS] between encoded words (whereby upon parsing space is ignored)
 		// format: encoded-word[2][space]angle-addr[1]
-		f.Write(e, 2, " ", d, 1)
+		f.Write(
+			folder.NewWordEncodable(addr.Name, mime.QEncoding, true),
+			2, " ", d, 1)
 	} else {
 		// angle-addr: [CFWS] "<" local @ domain ">" [CFWS]
 		// format: [1]<addr-spec>[1]
