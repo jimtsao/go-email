@@ -43,13 +43,20 @@ func check(t *testing.T, fn func(string) bool, allowed ...string) {
 		}
 	}
 
-	// test against this charset
-	for i := 0; i < 256; i++ {
+	// test some unicode code point ranges
+	// 0-127: control and basic latin (ascii)
+	// 128-255: control and latin-1 supplement
+	// 256-383: latin extended-a
+	for i := 0; i < 383; i++ {
 		r := rune(i)
 		want := strings.ContainsRune(sb.String(), r)
 		got := fn(string(r))
 		assert.Equalf(t, want, got, "ascii (%d): %q", i, r)
 	}
+}
+
+func TestIsASCII(t *testing.T) {
+	check(t, syntax.IsASCII, "0-127")
 }
 
 func TestIsVchar(t *testing.T) {

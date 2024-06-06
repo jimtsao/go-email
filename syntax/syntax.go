@@ -14,6 +14,14 @@ func checker(s string, fn func(r rune) bool) bool {
 	return true
 }
 
+func IsASCII(s string) bool {
+	return checker(s, isASCII)
+}
+
+func isASCII(r rune) bool {
+	return r <= unicode.MaxASCII
+}
+
 // IsVchar:
 //
 //	VCHAR = %d33-126 ; printable ascii
