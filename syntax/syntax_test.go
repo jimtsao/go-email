@@ -63,6 +63,10 @@ func TestIsVchar(t *testing.T) {
 	check(t, syntax.IsVchar, "33-126")
 }
 
+func TestIsWSP(t *testing.T) {
+	check(t, syntax.IsWSP, " ", "\t")
+}
+
 func TestIsCTL(t *testing.T) {
 	check(t, syntax.IsCTL, "0-31", "127")
 }
