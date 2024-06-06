@@ -7,31 +7,32 @@ import (
 	"time"
 
 	"github.com/jimtsao/go-email/folder"
+	"github.com/jimtsao/go-email/syntax"
 )
 
 // MIME Entity Headers
 //
 // Syntax:
 //
-//		entity-headers   :=   [ content CRLF ]
-//		                      [ encoding CRLF ]
-//		                      [ id CRLF ]
-//		                      [ description CRLF ]
-//		                      *( MIME-extension-field CRLF )
-//		content          :=   "Content-Type" ":" type "/" subtype
-//		                      *(";" parameter)
-//		discrete-type    :=   "text" / "image" / "audio" / "video" / "application"
-//		composite-type   :=   "multipart" / "message"
-//		subtype          :=   extension-token / iana-token
-//		iana-token       :=   <A publicly-defined extension token. Tokens
-//		                      of this form must be registered with IANA
-//		                      as specified in RFC 2048.>
-//		encoding         :=   "Content-Transfer-Encoding" ":" mechanism
-//		mechanism        :=   "7bit" / "8bit" / "binary" /
-//		                      "quoted-printable" / "base64" /
-//		                      ietf-token / x-token
-//		MIME-extension-field :=  <Any RFC 822 header field which begins with
-//	                             the string "Content-">
+//	entity-headers   :=   [ content CRLF ]
+//	                      [ encoding CRLF ]
+//	                      [ id CRLF ]
+//	                      [ description CRLF ]
+//	                      *( MIME-extension-field CRLF )
+//	content          :=   "Content-Type" ":" type "/" subtype
+//		                   *(";" parameter)
+//	discrete-type    :=   "text" / "image" / "audio" / "video" / "application"
+//	composite-type   :=   "multipart" / "message"
+//	subtype          :=   extension-token / iana-token
+//	iana-token       :=   <A publicly-defined extension token. Tokens
+//	                      of this form must be registered with IANA
+//	                      as specified in RFC 2048.>
+//	encoding         :=   "Content-Transfer-Encoding" ":" mechanism
+//	mechanism        :=   "7bit" / "8bit" / "binary" /
+//	                      "quoted-printable" / "base64" /
+//	                      ietf-token / x-token
+//	MIME-extension-field :=  <Any RFC 822 header field which begins with
+//	                         the string "Content-">
 //
 // tspecials: must be in quoted-string to use within parameter values
 
@@ -83,7 +84,11 @@ func (m *MIMEContentType) Validate() error {
 func (m *MIMEContentType) String() string {
 	s := fmt.Sprintf("%s: %s", m.Name(), m.ContentType)
 	for attr, val := range m.Params {
-		s += fmt.Sprintf("; %s=\"%s\"", attr, val)
+		if syntax.IsTSpecials(val) {
+			s += fmt.Sprintf("; %s=\"%s\"", attr, val)
+		} else {
+			s += fmt.Sprintf("; %s=%s", attr, val)
+		}
 	}
 	s += "\r\n"
 	return s

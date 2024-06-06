@@ -181,7 +181,10 @@ func (f *Folder) fold() {
 			// write the split part
 			oldAcc := f.acc
 			remAcc := f.acc[exceededAt+1:]
-			f.acc = append(f.acc[:exceededAt], split, fwsToken)
+			f.acc = append(f.acc[:exceededAt], split)
+			if rest != nil {
+				f.acc = append(f.acc, fwsToken)
+			}
 			if f.flush(); f.Err != nil {
 				f.acc = oldAcc
 				return
