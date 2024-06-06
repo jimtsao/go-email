@@ -172,6 +172,20 @@ func isMIMEParamAttributeChar(r rune) bool {
 		!isCTL(r) && !isTSpecials(r)
 }
 
+// IsMIMEToken (RFC 2231):
+//
+//	token := 1*<any (US-ASCII) CHAR except SPACE, CTLs, or tspecials>
+func IsMIMEToken(s string) bool {
+	if s == "" {
+		return false
+	}
+	return checker(s, isMIMEToken)
+}
+
+func isMIMEToken(r rune) bool {
+	return r > ' ' && r <= '~' && !isTSpecials(r)
+}
+
 // IsQuotedString:
 //
 //	quoted-string   =   DQUOTE *([FWS] qcontent) [FWS] DQUOTE

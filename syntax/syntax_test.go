@@ -97,6 +97,12 @@ func TestIsMIMEParamAttributeChar(t *testing.T) {
 		"46", "48-57", "65-90", "94-126")
 }
 
+func TestIsMIMEToken(t *testing.T) {
+	check(t, syntax.IsMIMEToken,
+		"33", "35-39", "42-43", "45-46",
+		"48-57", "65-90", "94-126")
+}
+
 func TestIsQuotedString(t *testing.T) {
 	for input, want := range map[string]bool{
 		`""`:                true,
