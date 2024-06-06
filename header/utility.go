@@ -42,7 +42,16 @@ func CanonicalHeaderKey(key string) string {
 //	A field name MUST be composed of printable US-ASCII characters
 //	(i.e. characters that have values between 33 and 126, inclusive),
 //	except colon (58)
+//
+// Errata 5918:
+//
+//	...field names should be limited to 77 characters – the field name and
+//	a trailing : – after which the field body can start after FWS on the next line.
 func IsValidHeaderName(s string) bool {
+	if len(s) > 77 {
+		return false
+	}
+
 	for _, c := range []byte(s) {
 		if !isValidHeaderNameByte(c) {
 			return false
