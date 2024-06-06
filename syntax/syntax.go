@@ -5,9 +5,9 @@ import (
 	"unicode"
 )
 
-func checker(s string, fn func(b byte) bool) bool {
-	for i := 0; i < len(s); i++ {
-		if !fn(s[i]) {
+func checker(s string, fn func(r rune) bool) bool {
+	for _, r := range s {
+		if !fn(r) {
 			return false
 		}
 	}
@@ -21,8 +21,8 @@ func IsVchar(s string) bool {
 	return checker(s, isVchar)
 }
 
-func isVchar(b byte) bool {
-	return '!' <= b && b <= '~'
+func isVchar(r rune) bool {
+	return '!' <= r && r <= '~'
 }
 
 // IsWSP:
@@ -32,8 +32,8 @@ func IsWSP(s string) bool {
 	return checker(s, isWSP)
 }
 
-func isWSP(b byte) bool {
-	return b == ' ' || b == '\t'
+func isWSP(r rune) bool {
+	return r == ' ' || r == '\t'
 }
 
 // CTL:
@@ -43,8 +43,8 @@ func IsCTL(s string) bool {
 	return checker(s, isCTL)
 }
 
-func isCTL(b byte) bool {
-	return b <= 31 || b == 127
+func isCTL(r rune) bool {
+	return r <= 31 || r == 127
 }
 
 // IsSpecials (RFC 5322):
@@ -58,13 +58,13 @@ func IsSpecials(s string) bool {
 	return checker(s, isSpecials)
 }
 
-func isSpecials(b byte) bool {
+func isSpecials(r rune) bool {
 	// fast check
-	if b < '"' || b > ']' {
+	if r < '"' || r > ']' {
 		return false
 	}
 
-	switch b {
+	switch r {
 	case '(', ')', '<', '>', '[', ']',
 		':', ';', '@', '\\', ',', '.',
 		'"':
@@ -83,13 +83,13 @@ func IsTSpecials(s string) bool {
 	return checker(s, isTSpecials)
 }
 
-func isTSpecials(b byte) bool {
+func isTSpecials(r rune) bool {
 	// fast check
-	if b < '"' || b > ']' {
+	if r < '"' || r > ']' {
 		return false
 	}
 
-	switch b {
+	switch r {
 	case '(', ')', '<', '>', '@',
 		',', ';', ':', '\\', '"',
 		'/', '[', ']', '?', '=':
@@ -112,12 +112,12 @@ func IsAtext(s string) bool {
 	return checker(s, isAtext)
 }
 
-func isAtext(b byte) bool {
-	if isSpecials(b) {
+func isAtext(r rune) bool {
+	if isSpecials(r) {
 		return false
 	}
 
-	return isVchar(b)
+	return isVchar(r)
 }
 
 // IsDtext:
@@ -129,12 +129,12 @@ func IsDtext(s string) bool {
 	return checker(s, isDtext)
 }
 
-func isDtext(b byte) bool {
-	switch b {
+func isDtext(r rune) bool {
+	switch r {
 	case '[', ']', '\\':
 		return false
 	}
-	return isVchar(b)
+	return isVchar(r)
 }
 
 // IsFtext:
@@ -146,8 +146,8 @@ func IsFtext(s string) bool {
 	return checker(s, isFtext)
 }
 
-func isFtext(b byte) bool {
-	return b != ':' && isVchar(b)
+func isFtext(r rune) bool {
+	return r != ':' && isVchar(r)
 }
 
 // IsMIMEParamAttributeChar:
@@ -158,10 +158,10 @@ func IsMIMEParamAttributeChar(s string) bool {
 	return checker(s, isMIMEParamAttributeChar)
 }
 
-func isMIMEParamAttributeChar(b byte) bool {
-	return b <= '~' && b != ' ' && b != '*' &&
-		b != '\'' && b != '%' &&
-		!isCTL(b) && !isTSpecials(b)
+func isMIMEParamAttributeChar(r rune) bool {
+	return r <= '~' && r != ' ' && r != '*' &&
+		r != '\'' && r != '%' &&
+		!isCTL(r) && !isTSpecials(r)
 }
 
 // IsQuotedString:
@@ -180,13 +180,13 @@ func IsQuotedString(s string) bool {
 
 	// check qtext or quoted-pair
 	escaped := false
-	for i := 0; i < len(s); i++ {
-		if !isQuotedString(s[i], i == 0 || i == len(s)-1, escaped) {
+	for i, r := range s {
+		if !isQuotedString(r, i == 0 || i == len(s)-1, escaped) {
 			return false
 		}
 
 		// toggle quoted-pair mode for next character
-		if !escaped && s[i] == '\\' {
+		if !escaped && r == '\\' {
 			escaped = true
 			continue
 		}
@@ -197,19 +197,19 @@ func IsQuotedString(s string) bool {
 	return true
 }
 
-func isQuotedString(b byte, dquote bool, escaped bool) bool {
+func isQuotedString(r rune, dquote bool, escaped bool) bool {
 	// beginning or end of string
 	if dquote {
-		return !escaped && b == '"'
+		return !escaped && r == '"'
 	}
 
 	// quoted pair
 	if escaped {
-		return isWSP(b) || isVchar(b)
+		return isWSP(r) || isVchar(r)
 	}
 
 	// qtext
-	return b != '"' && isVchar(b)
+	return r != '"' && isVchar(r)
 }
 
 // IsWordEncodable:
@@ -235,26 +235,27 @@ func isWordEncodable(r rune) bool {
 func IsDotAtomText(s string) bool {
 	dot := true
 	var i int
-	for i = 0; i < len(s); i++ {
-		if s[i] == '.' && (i == 0 || i == len(s)-1) {
+	var r rune
+	for i, r = range s {
+		if r == '.' && (i == 0 || i == len(s)-1) {
 			return false
 		}
-		if !isDotAtomText(s[i], dot) {
+		if !isDotAtomText(r, dot) {
 			return false
 		}
-		dot = s[i] != '.'
+		dot = r != '.'
 	}
 
 	// must be at least 1 valid character
 	return i != 0
 }
 
-func isDotAtomText(b byte, dot bool) bool {
-	if b == '.' {
+func isDotAtomText(r rune, dot bool) bool {
+	if r == '.' {
 		return dot
 	}
 
-	return isAtext(b)
+	return isAtext(r)
 }
 
 // IsRFC2045Token:
@@ -264,11 +265,11 @@ func IsRFC2045Token(s string) bool {
 	return checker(s, isRFC2045Token)
 }
 
-func isRFC2045Token(b byte) bool {
-	if isTSpecials(b) {
+func isRFC2045Token(r rune) bool {
+	if isTSpecials(r) {
 		return false
 	}
-	return '!' <= b && b <= '~'
+	return '!' <= r && r <= '~'
 }
 
 // IsNoFoldLiteral:
@@ -279,18 +280,18 @@ func IsNoFoldLiteral(s string) bool {
 		return false
 	}
 
-	for i := 0; i < len(s); i++ {
+	for i, r := range s {
 		switch i {
 		case 0:
-			if s[i] != '[' {
+			if r != '[' {
 				return false
 			}
 		case len(s) - 1:
-			if s[i] != ']' {
+			if r != ']' {
 				return false
 			}
 		default:
-			if !isDtext(s[i]) {
+			if !isDtext(r) {
 				return false
 			}
 		}
