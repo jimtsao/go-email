@@ -43,8 +43,11 @@ func check(t *testing.T, fn func(string) bool, allowed ...string) {
 		}
 	}
 
-	// test against this charset
-	for i := 0; i < 256; i++ {
+	// test some unicode code point ranges
+	// 0-127: control and basic latin (ascii)
+	// 128-255: control and latin-1 supplement
+	// 256-383: latin extended-a
+	for i := 0; i < 383; i++ {
 		r := rune(i)
 		want := strings.ContainsRune(sb.String(), r)
 		got := fn(string(r))
@@ -52,8 +55,16 @@ func check(t *testing.T, fn func(string) bool, allowed ...string) {
 	}
 }
 
+func TestIsASCII(t *testing.T) {
+	check(t, syntax.IsASCII, "0-127")
+}
+
 func TestIsVchar(t *testing.T) {
 	check(t, syntax.IsVchar, "33-126")
+}
+
+func TestIsWSP(t *testing.T) {
+	check(t, syntax.IsWSP, " ", "\t")
 }
 
 func TestIsCTL(t *testing.T) {
@@ -80,17 +91,31 @@ func TestIsFtext(t *testing.T) {
 	check(t, syntax.IsFtext, "33-57", "59-126")
 }
 
+func TestIsMIMEParamAttributeChar(t *testing.T) {
+	check(t, syntax.IsMIMEParamAttributeChar,
+		"33", "35", "36", "38", "43", "45",
+		"46", "48-57", "65-90", "94-126")
+}
+
+func TestIsMIMEToken(t *testing.T) {
+	check(t, syntax.IsMIMEToken,
+		"33", "35-39", "42-43", "45-46",
+		"48-57", "65-90", "94-126")
+}
+
 func TestIsQuotedString(t *testing.T) {
 	for input, want := range map[string]bool{
-		`""`:                true,
-		`"foo"`:             true,
-		`"foo\\"`:           true,
-		`"\ \` + "\t" + `"`: true,
-		``:                  false,
-		`"foo`:              false,
-		`foo"`:              false,
-		`"foo\"`:            false,
-		`"foo bar"`:         false,
+		`" "`:             true,
+		`"foo bar"`:       true,
+		`"foo\\"`:         true,
+		`"\` + "\t" + `"`: true,
+		``:                false,
+		`""`:              false,
+		`"""`:             false,
+		`"\"`:             false,
+		`"foo`:            false,
+		`foo"`:            false,
+		`"foo\"`:          false,
 	} {
 		got := syntax.IsQuotedString(input)
 		assert.Equalf(t, want, got, "%q", input)

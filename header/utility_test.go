@@ -1,6 +1,7 @@
 package header_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/jimtsao/go-email/header"
@@ -34,6 +35,9 @@ func TestIsValidHeaderName(t *testing.T) {
 		}
 		assert.Equalf(t, want, got, "%q", s)
 	}
+
+	got := header.IsValidHeaderName(strings.Repeat("i", 78))
+	assert.False(t, got, "header name > 77 characters")
 }
 
 func TestIsValidHeaderValue(t *testing.T) {
