@@ -105,15 +105,17 @@ func TestIsMIMEToken(t *testing.T) {
 
 func TestIsQuotedString(t *testing.T) {
 	for input, want := range map[string]bool{
-		`"foo"`:             true,
-		`"foo\\"`:           true,
-		`"\ \` + "\t" + `"`: true,
-		`""`:                false,
-		``:                  false,
-		`"foo`:              false,
-		`foo"`:              false,
-		`"foo\"`:            false,
-		`"foo bar"`:         false,
+		`" "`:             true,
+		`"foo bar"`:       true,
+		`"foo\\"`:         true,
+		`"\` + "\t" + `"`: true,
+		``:                false,
+		`""`:              false,
+		`"""`:             false,
+		`"\"`:             false,
+		`"foo`:            false,
+		`foo"`:            false,
+		`"foo\"`:          false,
 	} {
 		got := syntax.IsQuotedString(input)
 		assert.Equalf(t, want, got, "%q", input)

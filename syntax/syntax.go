@@ -190,7 +190,7 @@ func isMIMEToken(r rune) bool {
 //
 //	quoted-string   =   [CFWS] DQUOTE ((1*([FWS] qcontent) [FWS]) / FWS) DQUOTE [CFWS]
 //	qcontent        =   qtext / quoted-pair
-//	qtext           =   %d33 / %d35-91 / %d93-126
+//	qtext           =   %d32 / %d33 / %d35-91 / %d93-126
 //	quoted-pair     =   ("\" (VCHAR / WSP))
 //
 // qtext: printable ascii except \ and "
@@ -231,7 +231,7 @@ func isQuotedString(r rune, dquote bool, escaped bool) bool {
 	}
 
 	// qtext
-	return r != '"' && isVchar(r)
+	return r != '"' && r >= ' ' && r <= '~'
 }
 
 // IsWordEncodable:
