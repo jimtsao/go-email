@@ -188,15 +188,15 @@ func isMIMEToken(r rune) bool {
 
 // IsQuotedString:
 //
-//	quoted-string   =   DQUOTE *([FWS] qcontent) [FWS] DQUOTE
+//	quoted-string   =   [CFWS] DQUOTE ((1*([FWS] qcontent) [FWS]) / FWS) DQUOTE [CFWS]
 //	qcontent        =   qtext / quoted-pair
 //	qtext           =   %d33 / %d35-91 / %d93-126
 //	quoted-pair     =   ("\" (VCHAR / WSP))
 //
 // qtext: printable ascii except \ and "
 func IsQuotedString(s string) bool {
-	// expect at least empty quoted string
-	if len(s) < 2 {
+	// quoted string with at least 1 char
+	if len(s) < 3 {
 		return false
 	}
 

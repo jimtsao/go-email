@@ -57,7 +57,7 @@ const (
 //	dot-atom-text   =   1*atext *("." 1*atext)
 //	quoted-string   =   [CFWS] DQUOTE *([FWS] qcontent) [FWS] DQUOTE [CFWS]
 //	qcontent        =   qtext / quoted-pair
-//	qtext           =   %d33 / %d35-91 / %d93-126
+//	qtext           =   %d32 / %d33 / %d35-91 / %d93-126
 type Address struct {
 	Field AddressField
 	Value string

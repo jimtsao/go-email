@@ -105,10 +105,10 @@ func TestIsMIMEToken(t *testing.T) {
 
 func TestIsQuotedString(t *testing.T) {
 	for input, want := range map[string]bool{
-		`""`:                true,
 		`"foo"`:             true,
 		`"foo\\"`:           true,
 		`"\ \` + "\t" + `"`: true,
+		`""`:                false,
 		``:                  false,
 		`"foo`:              false,
 		`foo"`:              false,
