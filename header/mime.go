@@ -168,13 +168,6 @@ func (m MIMEContentID) String() string {
 	return sb.String()
 }
 
-type DispositionType string
-
-const (
-	Inline     DispositionType = "inline"
-	Attachment DispositionType = "attachment"
-)
-
 // MIMEContentDisposition represents the 'Content-Disposition' header
 //
 // Syntax:
@@ -199,7 +192,7 @@ const (
 //	                          ; contents MUST be an RFC 822 `date-time'
 //	                          ; numeric timezones (+HHMM or -HHMM) MUST be used
 type MIMEContentDisposition struct {
-	Type             DispositionType
+	Inline           bool // inline vs attachment
 	Filename         string
 	CreationDate     time.Time
 	Modificationdate time.Time
@@ -216,26 +209,36 @@ func (m MIMEContentDisposition) Validate() error {
 }
 
 func (m MIMEContentDisposition) String() string {
-	s := fmt.Sprintf("%s: %s", m.Name(), m.Type)
+	// fold using syntax: Content-Disposition:[1] type/subtype;[1] param
+	sb := &strings.Builder{}
+	f := folder.New(sb)
+	f.Write(m.Name()+":", 1, " ")
+	if m.Inline {
+		f.Write("inline")
+	} else {
+		f.Write("attachment")
+	}
+
+	// params
 	if m.Filename != "" {
-		s += fmt.Sprintf("; filename=\"%s\"", m.Filename)
+		f.Write(";", 1, " ", fmt.Sprintf("filename=\"%s\"", m.Filename))
 	}
 	if !m.CreationDate.IsZero() {
 		t := datetime(m.CreationDate)
-		s += fmt.Sprintf("; creation-date=\"%s\"", t)
+		f.Write(";", 1, " ", fmt.Sprintf("creation-date=\"%s\"", t))
 	}
 	if !m.Modificationdate.IsZero() {
-		t := datetime(m.CreationDate)
-		s += fmt.Sprintf("; modification-date=\"%s\"", t)
+		t := datetime(m.Modificationdate)
+		f.Write(";", 1, " ", fmt.Sprintf("modification-date=\"%s\"", t))
 	}
 	if !m.ReadDate.IsZero() {
-		t := datetime(m.CreationDate)
-		s += fmt.Sprintf("; read-date=\"%s\"", t)
+		t := datetime(m.ReadDate)
+		f.Write(";", 1, " ", fmt.Sprintf("read-date=\"%s\"", t))
 	}
 	if m.Size > 0 {
-		s += fmt.Sprintf("; size=%d", m.Size)
+		f.Write(";", 1, " ", fmt.Sprintf("size=%d", m.Size))
 	}
-	s += "\r\n"
 
-	return s
+	f.Close()
+	return sb.String()
 }

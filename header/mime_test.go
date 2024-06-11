@@ -78,25 +78,24 @@ func TestMIMEContentID(t *testing.T) {
 
 func TestMIMEContentDisposition(t *testing.T) {
 	sydney, _ := time.LoadLocation("Australia/Sydney")
-	dt := time.Date(1990, time.April, 3, 5, 30, 15, 20, sydney)
-	twant := "Tue, 3 Apr 1990 05:30:15 +1000"
+	cdate := "Sun, 1 Apr 1990 05:30:15 +1000"
+	mdate := "Mon, 2 Apr 1990 05:30:15 +1000"
+	rdate := "Tue, 3 Apr 1990 05:30:15 +1000"
 
 	h := header.MIMEContentDisposition{
-		Type:             header.Inline,
+		Inline:           false,
 		Filename:         "foo.txt",
-		CreationDate:     dt,
-		Modificationdate: dt,
-		ReadDate:         dt,
+		CreationDate:     time.Date(1990, time.April, 1, 5, 30, 15, 20, sydney),
+		Modificationdate: time.Date(1990, time.April, 2, 5, 30, 15, 20, sydney),
+		ReadDate:         time.Date(1990, time.April, 3, 5, 30, 15, 20, sydney),
 		Size:             1024,
 	}
 	err := h.Validate()
 	assert.NoError(t, err)
-	want := "Content-Disposition: inline" +
-		"; filename=\"foo.txt\"" +
-		"; creation-date=\"" + twant + "\"" +
-		"; modification-date=\"" + twant + "\"" +
-		"; read-date=\"" + twant + "\"" +
-		"; size=1024" +
+	want := "Content-Disposition: attachment; filename=\"foo.txt\"" +
+		";\r\n creation-date=\"" + cdate + "\"" +
+		";\r\n modification-date=\"" + mdate + "\"" +
+		";\r\n read-date=\"" + rdate + "\"" + "; size=1024" +
 		"\r\n"
 	assert.Equal(t, want, h.String())
 }
