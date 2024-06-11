@@ -82,16 +82,23 @@ func (m *MIMEContentType) Validate() error {
 }
 
 func (m *MIMEContentType) String() string {
-	s := fmt.Sprintf("%s: %s", m.Name(), m.ContentType)
+	// fold using syntax: Content-Type:[1] type/subtype;[1] param
+	sb := &strings.Builder{}
+	f := folder.New(sb)
+	f.Write(m.Name()+":", 1, " ", m.ContentType)
+
+	// params
 	for attr, val := range m.Params {
-		if syntax.IsTSpecials(val) {
-			s += fmt.Sprintf("; %s=\"%s\"", attr, val)
+		f.Write(";", 1, " ")
+		if syntax.ContainsTSpecials(val) {
+			f.Write(fmt.Sprintf("%s=\"%s\"", attr, val))
 		} else {
-			s += fmt.Sprintf("; %s=%s", attr, val)
+			f.Write(fmt.Sprintf("%s=%s", attr, val))
 		}
 	}
-	s += "\r\n"
-	return s
+
+	f.Close()
+	return sb.String()
 }
 
 // MIMEContentTransferEncoding represents the 'Content-Transfer-Encoding' header

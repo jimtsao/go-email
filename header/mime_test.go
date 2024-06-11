@@ -1,6 +1,8 @@
 package header_test
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 	_ "time/tzdata"
@@ -9,34 +11,53 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func headerContains(t *testing.T, header string, contains []string) {
+	for _, h := range contains {
+		before, after, found := strings.Cut(header, h)
+		assert.Truef(t, found, "missing header: %s", h)
+		header = before + after
+	}
+}
+
 func TestMIMEContentType(t *testing.T) {
 	// text/plain
 	h := &header.MIMEContentType{
 		ContentType: "text/plain",
 		Params:      map[string]string{"charset": "utf-8"},
 	}
-	assert.NoError(t, h.Validate())
-	assert.Equal(t, "Content-Type: text/plain; charset=\"utf-8\"\r\n", h.String())
+	assert.NoError(t, h.Validate(), "text/plain")
+	assert.Equal(t, "Content-Type: text/plain; charset=utf-8\r\n", h.String(), "text/plain")
 
 	// detect type
 	h.DetectFromContent([]byte("<html>foo</html>"))
-	assert.NoError(t, h.Validate())
-	assert.Equal(t, "Content-Type: text/html; charset=\"utf-8\"\r\n", h.String())
+	assert.NoError(t, h.Validate(), "detect type")
+	assert.Equal(t, "Content-Type: text/html; charset=utf-8\r\n", h.String(), "detect type")
 
-	// octet-stream
+	// tspecial
+	h = &header.MIMEContentType{
+		ContentType: "multipart/mixed",
+		Params: map[string]string{
+			"boundary": "(foo)",
+		},
+	}
+	assert.NoError(t, h.Validate(), "tspecials")
+	assert.Equal(t, "Content-Type: multipart/mixed; boundary=\"(foo)\"\r\n", h.String(), "tspecials")
+
+	// folding
 	h = &header.MIMEContentType{
 		ContentType: "text/html",
 		Params: map[string]string{
 			"charset": "utf-8",
-			"name":    "foo.exe",
+			"param1":  strings.Repeat("i", 80),
+			"param2":  strings.Repeat("i", 80),
 		},
 	}
-	assert.NoError(t, h.Validate())
-	want := "Content-Type: text/html; charset=\"utf-8\"; name=\"foo.exe\"\r\n"
-	got := h.String()
-	assert.Equal(t, len(want), len(got))
-	assert.Contains(t, want, "; charset=\"utf-8\"")
-	assert.Contains(t, want, "; name=\"foo.exe\"")
+	assert.NoError(t, h.Validate(), "folding")
+	headerContains(t, h.String(), []string{
+		"charset=utf-8",
+		fmt.Sprintf(" param1=%s", strings.Repeat("i", 80)),
+		fmt.Sprintf(" param2=%s", strings.Repeat("i", 80)),
+	})
 }
 
 func TestMIMEContentTransferEncoding(t *testing.T) {
