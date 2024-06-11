@@ -5,7 +5,7 @@ import (
 	"unicode"
 )
 
-func checker(s string, fn func(r rune) bool) bool {
+func allTrueCheck(s string, fn func(r rune) bool) bool {
 	for _, r := range s {
 		if !fn(r) {
 			return false
@@ -14,8 +14,17 @@ func checker(s string, fn func(r rune) bool) bool {
 	return true
 }
 
+func anyTrueCheck(s string, fn func(r rune) bool) bool {
+	for _, r := range s {
+		if fn(r) {
+			return true
+		}
+	}
+	return false
+}
+
 func IsASCII(s string) bool {
-	return checker(s, isASCII)
+	return allTrueCheck(s, isASCII)
 }
 
 func isASCII(r rune) bool {
@@ -26,44 +35,44 @@ func isASCII(r rune) bool {
 //
 //	VCHAR = %d33-126 ; printable ascii
 func IsVchar(s string) bool {
-	return checker(s, isVchar)
+	return allTrueCheck(s, isVchar)
 }
 
 func isVchar(r rune) bool {
 	return '!' <= r && r <= '~'
 }
 
-// IsWSP:
+// ContainsWSP:
 //
 //	WSP = SP / HTAB
-func IsWSP(s string) bool {
-	return checker(s, isWSP)
+func ContainsWSP(s string) bool {
+	return anyTrueCheck(s, isWSP)
 }
 
 func isWSP(r rune) bool {
 	return r == ' ' || r == '\t'
 }
 
-// CTL:
+// ContainsCTL:
 //
 //	CTL = %d0-31 / %d127 ; control characters
-func IsCTL(s string) bool {
-	return checker(s, isCTL)
+func ContainsCTL(s string) bool {
+	return anyTrueCheck(s, isCTL)
 }
 
 func isCTL(r rune) bool {
 	return r <= 31 || r == 127
 }
 
-// IsSpecials (RFC 5322):
+// ContainsSpecials (RFC 5322):
 //
 //	specials   =   "(" / ")" / "<" / ">" / "[" / "]" /
 //	               ":" / ";" / "@" / "\" / "," / "." /
 //	               DQUOTE
 //
 // characters that do not appear in atext
-func IsSpecials(s string) bool {
-	return checker(s, isSpecials)
+func ContainsSpecials(s string) bool {
+	return anyTrueCheck(s, isSpecials)
 }
 
 func isSpecials(r rune) bool {
@@ -82,13 +91,13 @@ func isSpecials(r rune) bool {
 	return false
 }
 
-// IsTSpecials (RFC 2045):
+// ContainsTSpecials (RFC 2045):
 //
 //	tspecials :=  "(" / ")" / "<" / ">" / "@" /
 //	              "," / ";" / ":" / "\" / <"> /
 //	              "/" / "[" / "]" / "?" / "="
-func IsTSpecials(s string) bool {
-	return checker(s, isTSpecials)
+func ContainsTSpecials(s string) bool {
+	return anyTrueCheck(s, isTSpecials)
 }
 
 func isTSpecials(r rune) bool {
@@ -117,7 +126,7 @@ func isTSpecials(r rune) bool {
 //
 // printable ascii excluding specials
 func IsAtext(s string) bool {
-	return checker(s, isAtext)
+	return allTrueCheck(s, isAtext)
 }
 
 func isAtext(r rune) bool {
@@ -134,7 +143,7 @@ func isAtext(r rune) bool {
 //
 // printable ascii excluding "[", "]" and "\"
 func IsDtext(s string) bool {
-	return checker(s, isDtext)
+	return allTrueCheck(s, isDtext)
 }
 
 func isDtext(r rune) bool {
@@ -151,7 +160,7 @@ func isDtext(r rune) bool {
 //
 // printable ascii excluding ":"
 func IsFtext(s string) bool {
-	return checker(s, isFtext)
+	return allTrueCheck(s, isFtext)
 }
 
 func isFtext(r rune) bool {
@@ -163,7 +172,7 @@ func isFtext(r rune) bool {
 //	attribute-char := <any (US-ASCII) CHAR except SPACE,
 //	                  CTLs, "*", "'", "%", or tspecials>
 func IsMIMEParamAttributeChar(s string) bool {
-	return checker(s, isMIMEParamAttributeChar)
+	return allTrueCheck(s, isMIMEParamAttributeChar)
 }
 
 func isMIMEParamAttributeChar(r rune) bool {
@@ -179,7 +188,7 @@ func IsMIMEToken(s string) bool {
 	if s == "" {
 		return false
 	}
-	return checker(s, isMIMEToken)
+	return allTrueCheck(s, isMIMEToken)
 }
 
 func isMIMEToken(r rune) bool {
@@ -284,7 +293,7 @@ func isDotAtomText(r rune, dot bool) bool {
 //
 // token := 1*<any (US-ASCII) CHAR except SPACE, CTLs, or tspecials>
 func IsRFC2045Token(s string) bool {
-	return checker(s, isRFC2045Token)
+	return allTrueCheck(s, isRFC2045Token)
 }
 
 func isRFC2045Token(r rune) bool {

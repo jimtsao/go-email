@@ -57,50 +57,61 @@ func check(t *testing.T, fn func(string) bool, allowed ...string) {
 
 func TestIsASCII(t *testing.T) {
 	check(t, syntax.IsASCII, "0-127")
+	assert.False(t, syntax.IsASCII("méow"))
 }
 
 func TestIsVchar(t *testing.T) {
 	check(t, syntax.IsVchar, "33-126")
+	assert.False(t, syntax.IsVchar("foo\nbar"))
 }
 
-func TestIsWSP(t *testing.T) {
-	check(t, syntax.IsWSP, " ", "\t")
+func TestContainsWSP(t *testing.T) {
+	check(t, syntax.ContainsWSP, " ", "\t")
+	assert.True(t, syntax.ContainsWSP("foo bar"))
 }
 
-func TestIsCTL(t *testing.T) {
-	check(t, syntax.IsCTL, "0-31", "127")
+func TestContainsCTL(t *testing.T) {
+	check(t, syntax.ContainsCTL, "0-31", "127")
+	assert.True(t, syntax.ContainsCTL("foo\tbar"))
 }
 
-func TestIsSpecials(t *testing.T) {
-	check(t, syntax.IsSpecials, specials)
+func TestContainsSpecials(t *testing.T) {
+	check(t, syntax.ContainsSpecials, specials)
+	assert.True(t, syntax.ContainsSpecials("foo"+specials))
 }
 
 func TestIsTSpecials(t *testing.T) {
-	check(t, syntax.IsTSpecials, tSpecials)
+	check(t, syntax.ContainsTSpecials, tSpecials)
+	assert.True(t, syntax.ContainsTSpecials("foo"+tSpecials))
 }
 
 func TestIsAtext(t *testing.T) {
 	check(t, syntax.IsAtext, "48-57", "65-90", "97-122", atextSpecials)
+	assert.False(t, syntax.IsAtext("("+atext+")"))
 }
 
 func TestIsDtext(t *testing.T) {
 	check(t, syntax.IsDtext, "33-90", "94-126")
+	assert.False(t, syntax.IsDtext("[foo]"))
 }
 
 func TestIsFtext(t *testing.T) {
 	check(t, syntax.IsFtext, "33-57", "59-126")
+	assert.False(t, syntax.IsFtext("foo:bar"))
 }
 
 func TestIsMIMEParamAttributeChar(t *testing.T) {
 	check(t, syntax.IsMIMEParamAttributeChar,
 		"33", "35", "36", "38", "43", "45",
 		"46", "48-57", "65-90", "94-126")
+	assert.False(t, syntax.IsMIMEParamAttributeChar("foo%bar"))
 }
 
 func TestIsMIMEToken(t *testing.T) {
 	check(t, syntax.IsMIMEToken,
 		"33", "35-39", "42-43", "45-46",
 		"48-57", "65-90", "94-126")
+	assert.False(t, syntax.IsMIMEToken("foo bar"))
 }
 
 func TestIsQuotedString(t *testing.T) {
