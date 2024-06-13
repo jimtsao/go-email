@@ -10,31 +10,22 @@ import (
 	"github.com/jimtsao/go-email/syntax"
 )
 
-// MIME Entity Headers
+// MIMEVersion represents the 'MIME-Version' header
 //
-// Syntax:
-//
-//	entity-headers   :=   [ content CRLF ]
-//	                      [ encoding CRLF ]
-//	                      [ id CRLF ]
-//	                      [ description CRLF ]
-//	                      *( MIME-extension-field CRLF )
-//	content          :=   "Content-Type" ":" type "/" subtype
-//		                   *(";" parameter)
-//	discrete-type    :=   "text" / "image" / "audio" / "video" / "application"
-//	composite-type   :=   "multipart" / "message"
-//	subtype          :=   extension-token / iana-token
-//	iana-token       :=   <A publicly-defined extension token. Tokens
-//	                      of this form must be registered with IANA
-//	                      as specified in RFC 2048.>
-//	encoding         :=   "Content-Transfer-Encoding" ":" mechanism
-//	mechanism        :=   "7bit" / "8bit" / "binary" /
-//	                      "quoted-printable" / "base64" /
-//	                      ietf-token / x-token
-//	MIME-extension-field :=  <Any RFC 822 header field which begins with
-//	                         the string "Content-">
-//
-// tspecials: must be in quoted-string to use within parameter values
+// default output is MIME-Version: 1.0
+type MIMEVersion struct{}
+
+func (m MIMEVersion) Name() string {
+	return "MIME-Version"
+}
+
+func (m MIMEVersion) Validate() error {
+	return nil
+}
+
+func (m MIMEVersion) String() string {
+	return "MIME-Version: 1.0\r\n"
+}
 
 // MIMEContentType represents the 'Content-Type' header
 //
