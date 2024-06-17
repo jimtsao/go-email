@@ -1,3 +1,11 @@
+// Took me a while to wrap my head around so here is a bit of an explanation
+// for future reference. Think of Entity as an expanded definition of an RFC 5322
+// message. The basic syntax is: header + blank line + body.
+//
+// The header may or may not contain MIME related headers, i.e. Content-*
+// A multipart entity is just one with a Content-Type: multipart/*; boundary=*
+// header along with a special body syntax, but otherwise still retains the
+// basic header + blank line + (multipart-body) syntax
 package mime
 
 import (
