@@ -1,7 +1,6 @@
 package mime_test
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/jimtsao/go-email/header"
@@ -18,7 +17,7 @@ func (a aString) String() string {
 func TestEntity(t *testing.T) {
 	// message entity
 	msg := &mime.Entity{
-		Headers: []fmt.Stringer{
+		Headers: []header.Header{
 			header.Address{Field: header.AddressFrom, Value: "a@a.com"},
 			header.Address{Field: header.AddressTo, Value: "b@b.com"},
 			header.Subject("Foo Bar"),

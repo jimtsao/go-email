@@ -37,7 +37,7 @@ func (s String) String() string {
 //	MIME-part-headers      :=   entity-headers
 //	                            [ fields ]
 type Entity struct {
-	Headers []fmt.Stringer
+	Headers []header.Header
 	Body    fmt.Stringer
 }
 
@@ -59,7 +59,7 @@ func NewEntity(ContentType string, Data string, Params ...string) *Entity {
 	}
 
 	return &Entity{
-		Headers: []fmt.Stringer{&header.MIMEContentType{
+		Headers: []header.Header{&header.MIMEContentType{
 			ContentType: ContentType,
 			Params:      params}},
 		Body: String(Data),

@@ -100,29 +100,23 @@ func (m *multipartBody) String() string {
 	return sb.String()
 }
 
-func NewMultipartMixed(headers []fmt.Stringer, parts []*Entity) *Entity {
+func NewMultipartMixed(headers []header.Header, parts []*Entity) *Entity {
 	return NewMultipart("mixed", headers, parts)
 }
 
 // NewMultipartAlternative returns multipart/alternative entity
 // Parts should be in ascending (least to greatest) order of preference preference
-func NewMultipartAlternative(headers []fmt.Stringer, parts []*Entity) *Entity {
+func NewMultipartAlternative(headers []header.Header, parts []*Entity) *Entity {
 	return NewMultipart("alternative", headers, parts)
 }
 
 // NewMultipart returns an entity with content-type set as multipart/subtype
-func NewMultipart(subtype string, headers []fmt.Stringer, parts []*Entity) *Entity {
+func NewMultipart(subtype string, headers []header.Header, parts []*Entity) *Entity {
 	pre := fmt.Sprintf("Content-Type: multipart/%s; boundary=", subtype)
 	boundary := randomBoundary(maxLineLen - len(pre))
-	mb := &multipartBody{
-		boundary: boundary,
-		parts:    parts,
-	}
-
 	return &Entity{
-		Headers: append(headers,
-			&header.MIMEContentType{
-				ContentType: "multipart/" + string(subtype),
-				Params:      map[string]string{"boundary": boundary}}),
-		Body: mb}
+		Headers: append(headers, &header.MIMEContentType{
+			ContentType: "multipart/" + string(subtype),
+			Params:      map[string]string{"boundary": boundary}}),
+		Body: &multipartBody{boundary: boundary, parts: parts}}
 }
