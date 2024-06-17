@@ -115,8 +115,8 @@ func NewMultipart(subtype string, headers []header.Header, parts []*Entity) *Ent
 	pre := fmt.Sprintf("Content-Type: multipart/%s; boundary=", subtype)
 	boundary := randomBoundary(maxLineLen - len(pre))
 	return &Entity{
-		Headers: append(headers, &header.MIMEContentType{
-			ContentType: "multipart/" + string(subtype),
-			Params:      map[string]string{"boundary": boundary}}),
+		Headers: append(headers, header.NewContentType(
+			"multipart/"+subtype,
+			map[string]string{"boundary": boundary})),
 		Body: &multipartBody{boundary: boundary, parts: parts}}
 }

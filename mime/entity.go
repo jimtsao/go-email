@@ -59,10 +59,8 @@ func NewEntity(ContentType string, Data string, Params ...string) *Entity {
 	}
 
 	return &Entity{
-		Headers: []header.Header{&header.MIMEContentType{
-			ContentType: ContentType,
-			Params:      params}},
-		Body: String(Data),
+		Headers: []header.Header{header.NewContentType(ContentType, params)},
+		Body:    String(Data),
 	}
 }
 

@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/jimtsao/go-email/folder"
-	"github.com/jimtsao/go-email/syntax"
 )
 
 // MIMEVersion represents the 'MIME-Version' header
@@ -27,14 +25,56 @@ func (m MIMEVersion) String() string {
 	return "MIME-Version: 1.0\r\n"
 }
 
-// MIMEContentType represents the 'Content-Type' header
+// MIMEHeader represents a Content-[Name] header:
 //
-// Usage:
-//
-//	ct := MIMEContentType{ContentType: "text/plain", Charset: "utf-8"}
-//	ct := MIMEContentType{}.DetectFromContent([]byte("<html>foo</html>"))
-//
-// Syntax:
+//	parameter        :=   attribute "=" value
+//	attribute        :=   token
+//	value            :=   token / quoted-string
+//	token            :=   1*<any (US-ASCII) CHAR except SPACE, CTLs, or tspecials>
+//	tspecials        :=   "(" / ")" / "<" / ">" / "@" /
+//	                      "," / ";" / ":" / "\" / <"> /
+//	                      "/" / "[" / "]" / "?" / "="
+//	                      ; Must be in quoted-string to use within parameter values
+type MIMEHeader struct {
+	name     string
+	val      string
+	params   map[string]string
+	validate func() error
+}
+
+// NewMIMEHeader returns a Content-[name] MIME header
+func NewMIMEHeader(name string, val string, params map[string]string) *MIMEHeader {
+	return &MIMEHeader{name: name, val: val, params: params}
+}
+
+func (m *MIMEHeader) Name() string {
+	return fmt.Sprintf("Content-%s", m.name)
+}
+
+func (m *MIMEHeader) Validate() error {
+	if m.validate == nil {
+		return nil
+	}
+	return m.validate()
+}
+
+func (m *MIMEHeader) String() string {
+	// fold using syntax: Content-name:[2][space]val param
+	sb := &strings.Builder{}
+	f := folder.New(sb)
+	f.Write(m.Name()+":", 2, " ", m.val)
+
+	// params
+	for attr, val := range m.params {
+		mp := folder.MIMEParam{Name: attr, Val: val}
+		f.Write(";", 1, " ", mp)
+	}
+
+	f.Close()
+	return sb.String()
+}
+
+// NewContentType returns Content-Type header:
 //
 //	content          :=   "Content-Type" ":" type "/" subtype
 //	                      *(";" parameter)
@@ -43,125 +83,40 @@ func (m MIMEVersion) String() string {
 //	                      "application" / extension-token
 //	composite-type   :=   "message" / "multipart" / extension-token
 //	subtype          :=   extension-token / iana-token
-//	parameter        :=   attribute "=" value
-//	attribute        :=   token
-//	value            :=   token / quoted-string
-//	token            :=   1*<any (US-ASCII) CHAR except SPACE, CTLs, or tspecials>
-//	tspecials        :=   "(" / ")" / "<" / ">" / "@" /
-//	                      "," / ";" / ":" / "\" / <"> /
-//	                      "/" / "[" / "]" / "?" / "="
-type MIMEContentType struct {
-	ContentType string
-	Params      map[string]string
+func NewContentType(val string, params map[string]string) *MIMEHeader {
+	return &MIMEHeader{name: "Type", val: val, params: params}
 }
 
-func (m *MIMEContentType) DetectFromContent(data []byte) {
+func NewContentTypeFrom(data []byte) *MIMEHeader {
 	ct := http.DetectContentType(data)
 	ct, cs, _ := strings.Cut(ct, "; charset=")
-	m.ContentType = ct
-	if cs != "" {
-		if m.Params == nil {
-			m.Params = map[string]string{}
-		}
-		m.Params["charset"] = cs
-	}
+	return &MIMEHeader{
+		name:   "Type",
+		val:    ct,
+		params: map[string]string{"charset": cs}}
 }
 
-func (m *MIMEContentType) Name() string {
-	return "Content-Type"
-}
-
-func (m *MIMEContentType) Validate() error {
-	return nil
-}
-
-func (m *MIMEContentType) String() string {
-	// fold using syntax: Content-Type:[1] type/subtype;[1] param
-	sb := &strings.Builder{}
-	f := folder.New(sb)
-	f.Write(m.Name()+":", 1, " ", m.ContentType)
-
-	// params
-	for attr, val := range m.Params {
-		f.Write(";", 1, " ")
-		mp := folder.MIMEParam{Name: attr, Val: val}
-		if syntax.ContainsTSpecials(val) {
-			mp.Val = `"` + mp.Val + `"`
-			f.Write(mp)
-		} else {
-			f.Write(mp)
-		}
-	}
-
-	f.Close()
-	return sb.String()
-}
-
-// MIMEContentTransferEncoding represents the 'Content-Transfer-Encoding' header
-//
-// Usage:
-//
-//	m := MIMEEncoding("7bit")
-//
-// Syntax:
+// NewContentTransferEncoding returns 'Content-Transfer-Encoding' header:
 //
 //	encoding   :=  "Content-Transfer-Encoding" ":" mechanism
-//	mechanism  :=  "7bit" / "8bit" / "binary" /
-//	               "quoted-printable" / "base64" /
-//	               ietf-token / x-token
-type MIMEContentTransferEncoding string
-
-func (m MIMEContentTransferEncoding) Name() string {
-	return "Content-Transfer-Encoding"
+//	mechanism  :=  "7bit" / "8bit" / "binary" / "quoted-printable" /
+//	               "base64" / ietf-token / x-token
+func NewContentTransferEncoding(val string) *MIMEHeader {
+	return &MIMEHeader{name: "Transfer-Encoding", val: val}
 }
 
-func (m MIMEContentTransferEncoding) Validate() error {
-	return nil
-}
-
-func (m MIMEContentTransferEncoding) String() string {
-	return fmt.Sprintf("%s: %s\r\n", m.Name(), string(m))
-}
-
-// MIMEContentID represents the 'Content-ID' header
-//
-// Syntax:
+// NewContentID returns 'Content-ID' header:
 //
 //	content-id = "Content-ID" ":" msg-id
 //	msg-id     = [CFWS] "<" id-left "@" id-right ">" [CFWS]
-type MIMEContentID string
-
-func (m MIMEContentID) Name() string {
-	return "Content-ID"
-}
-
-func (m MIMEContentID) Validate() error {
-	id := msgid(m)
-	if err := id.validate(); err != nil {
-		return fmt.Errorf("%s: %w", m.Name(), err)
+func NewContentID(val string) *MIMEHeader {
+	validate := func() error {
+		if err := msgid(val).validate(); err != nil {
+			return fmt.Errorf("%s: %w", "Content-ID", err)
+		}
+		return nil
 	}
-
-	// chars
-	nameValid := IsValidHeaderName(m.Name())
-	valValid := IsValidHeaderValue(id.string())
-	if !nameValid && !valValid {
-		return fmt.Errorf("%s: invalid characters in header name and body", m.Name())
-	} else if !nameValid {
-		return fmt.Errorf("%s: invalid characters in header name", m.Name())
-	} else if !valValid {
-		return fmt.Errorf("%s: invalid characters in header body", m.Name())
-	}
-
-	return nil
-}
-
-func (m MIMEContentID) String() string {
-	id := msgid(m).string()
-	sb := &strings.Builder{}
-	f := folder.New(sb)
-	f.Write(m.Name()+":", 1, " ", id)
-	f.Close()
-	return sb.String()
+	return &MIMEHeader{name: "ID", val: val, validate: validate}
 }
 
 // MIMEContentDisposition represents the 'Content-Disposition' header
@@ -187,54 +142,14 @@ func (m MIMEContentID) String() string {
 //	quoted-date-time       := quoted-string
 //	                          ; contents MUST be an RFC 822 `date-time'
 //	                          ; numeric timezones (+HHMM or -HHMM) MUST be used
-type MIMEContentDisposition struct {
-	Inline           bool // inline vs attachment
-	Filename         string
-	CreationDate     time.Time
-	Modificationdate time.Time
-	ReadDate         time.Time
-	Size             int // approximate size in octets
-}
-
-func (m MIMEContentDisposition) Name() string {
-	return "Content-Disposition"
-}
-
-func (m MIMEContentDisposition) Validate() error {
-	return nil
-}
-
-func (m MIMEContentDisposition) String() string {
-	// fold using syntax: Content-Disposition:[1] type/subtype;[1] param
-	sb := &strings.Builder{}
-	f := folder.New(sb)
-	f.Write(m.Name()+":", 1, " ")
-	if m.Inline {
-		f.Write("inline")
-	} else {
-		f.Write("attachment")
+func NewContentDisposition(inline bool, filename string, params map[string]string) *MIMEHeader {
+	val := "attachment"
+	if inline {
+		val = "inline"
 	}
-
-	// params
-	if m.Filename != "" {
-		f.Write(";", 1, " ", fmt.Sprintf("filename=\"%s\"", m.Filename))
+	if params == nil {
+		params = map[string]string{}
 	}
-	if !m.CreationDate.IsZero() {
-		t := datetime(m.CreationDate)
-		f.Write(";", 1, " ", fmt.Sprintf("creation-date=\"%s\"", t))
-	}
-	if !m.Modificationdate.IsZero() {
-		t := datetime(m.Modificationdate)
-		f.Write(";", 1, " ", fmt.Sprintf("modification-date=\"%s\"", t))
-	}
-	if !m.ReadDate.IsZero() {
-		t := datetime(m.ReadDate)
-		f.Write(";", 1, " ", fmt.Sprintf("read-date=\"%s\"", t))
-	}
-	if m.Size > 0 {
-		f.Write(";", 1, " ", fmt.Sprintf("size=%d", m.Size))
-	}
-
-	f.Close()
-	return sb.String()
+	params["filename"] = filename
+	return &MIMEHeader{name: "Disposition", val: val, params: params}
 }

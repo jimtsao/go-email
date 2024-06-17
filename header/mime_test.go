@@ -25,8 +25,8 @@ func TestMIMEParam(t *testing.T) {
 		h    header.Header
 		want string
 	}{
-		{"empty val", header.MIMEContentDisposition{Filename: ""}, ""},
-		{"empty quoted val", header.MIMEContentDisposition{Filename: `""`}, `; filename=""`},
+		{"empty val", header.NewContentDisposition(false, "", nil), ""},
+		{"empty quoted val", header.NewContentDisposition(false, `""`, nil), `; filename=""`},
 	} {
 		assert.NoError(t, c.h.Validate(), c.desc)
 		want := fmt.Sprintf("Content-Disposition: attachment%s\r\n", c.want)
@@ -42,47 +42,40 @@ func TestMIMEParam(t *testing.T) {
 
 func TestMIMEContentType(t *testing.T) {
 	// text/plain
-	h := &header.MIMEContentType{
-		ContentType: "text/plain",
-		Params:      map[string]string{"charset": "utf-8"},
-	}
+	h := header.NewContentType("text/plain", map[string]string{"charset": "us-ascii"})
 	assert.NoError(t, h.Validate(), "text/plain")
-	assert.Equal(t, "Content-Type: text/plain; charset=utf-8\r\n", h.String(), "text/plain")
+	assert.Equal(t, "Content-Type: text/plain; charset=us-ascii\r\n", h.String(), "text/plain")
 
 	// detect type
-	h.DetectFromContent([]byte("<html>foo</html>"))
+	h = header.NewContentTypeFrom([]byte("<html>foo</html>"))
 	assert.NoError(t, h.Validate(), "detect type")
 	assert.Equal(t, "Content-Type: text/html; charset=utf-8\r\n", h.String(), "detect type")
 
 	// tspecial
-	h = &header.MIMEContentType{
-		ContentType: "multipart/mixed",
-		Params: map[string]string{
-			"boundary": "(foo)",
-		},
-	}
+	h = header.NewContentType("multipart/mixed", map[string]string{"boundary": "(foo)"})
 	assert.NoError(t, h.Validate(), "tspecials")
 	assert.Equal(t, "Content-Type: multipart/mixed; boundary=\"(foo)\"\r\n", h.String(), "tspecials")
 
 	// folding
-	h = &header.MIMEContentType{
-		ContentType: "text/html",
-		Params: map[string]string{
-			"charset": "utf-8",
-			"param1":  strings.Repeat("i", 80),
-			"param2":  strings.Repeat("i", 80),
-		},
-	}
+	h = header.NewContentType("text/html", map[string]string{
+		"charset":   "utf-8",
+		"param_one": strings.Repeat("i", 80),
+		"param_two": strings.Repeat("i", 80),
+	})
 	assert.NoError(t, h.Validate(), "folding")
 	headerContains(t, h.String(), []string{
-		"charset=utf-8",
-		fmt.Sprintf(" param1=%s", strings.Repeat("i", 80)),
-		fmt.Sprintf(" param2=%s", strings.Repeat("i", 80)),
+		"; charset=utf-8",
+		";\r\n param_one*0*=utf-8''iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii" +
+			"\r\n param_one*1*=iiiiiiiiiiiiiiiiiiiiiii",
+		";\r\n param_two*0*=utf-8''iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii" +
+			"\r\n param_two*1*=iiiiiiiiiiiiiiiiiiiiiii",
 	})
+	assert.Emptyf(t, h.String(), "%q", h.String())
+
 }
 
 func TestMIMEContentTransferEncoding(t *testing.T) {
-	h := header.MIMEContentTransferEncoding("7bit")
+	h := header.NewContentTransferEncoding("7bit")
 	err := h.Validate()
 	assert.NoError(t, err)
 	want := "Content-Transfer-Encoding: 7bit\r\n"
@@ -90,7 +83,7 @@ func TestMIMEContentTransferEncoding(t *testing.T) {
 }
 
 func TestMIMEContentID(t *testing.T) {
-	h := header.MIMEContentID("<hello@127.0.0.1>")
+	h := header.NewContentID("<hello@127.0.0.1>")
 	err := h.Validate()
 	assert.NoError(t, err)
 	want := "Content-ID: <hello@127.0.0.1>\r\n"
@@ -99,18 +92,19 @@ func TestMIMEContentID(t *testing.T) {
 
 func TestMIMEContentDisposition(t *testing.T) {
 	sydney, _ := time.LoadLocation("Australia/Sydney")
+	ctime := time.Date(1990, time.April, 1, 5, 30, 15, 20, sydney)
 	cdate := "Sun, 1 Apr 1990 05:30:15 +1000"
+	mtime := time.Date(1990, time.April, 2, 5, 30, 15, 20, sydney)
 	mdate := "Mon, 2 Apr 1990 05:30:15 +1000"
+	rtime := time.Date(1990, time.April, 3, 5, 30, 15, 20, sydney)
 	rdate := "Tue, 3 Apr 1990 05:30:15 +1000"
 
-	h := header.MIMEContentDisposition{
-		Inline:           false,
-		Filename:         "foo.txt",
-		CreationDate:     time.Date(1990, time.April, 1, 5, 30, 15, 20, sydney),
-		Modificationdate: time.Date(1990, time.April, 2, 5, 30, 15, 20, sydney),
-		ReadDate:         time.Date(1990, time.April, 3, 5, 30, 15, 20, sydney),
-		Size:             1024,
-	}
+	h := header.NewContentDisposition(false, "foo.txt", map[string]string{
+		"creation-date":     ctime.Format(header.TimeRFC5322),
+		"modification-date": mtime.Format(header.TimeRFC5322),
+		"read-date":         rtime.Format(header.TimeRFC5322),
+		"size":              "1024",
+	})
 	err := h.Validate()
 	assert.NoError(t, err)
 	want := "Content-Disposition: attachment; filename=\"foo.txt\"" +
