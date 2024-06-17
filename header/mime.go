@@ -60,6 +60,9 @@ func (m *MIMEContentType) DetectFromContent(data []byte) {
 	ct, cs, _ := strings.Cut(ct, "; charset=")
 	m.ContentType = ct
 	if cs != "" {
+		if m.Params == nil {
+			m.Params = map[string]string{}
+		}
 		m.Params["charset"] = cs
 	}
 }
