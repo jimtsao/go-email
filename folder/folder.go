@@ -132,7 +132,7 @@ func (f *Folder) fold() {
 
 	// iterate backwards from the token that exceeds line limit, token by token
 	// to find first suitable place where we can fold
-	for i := len(f.acc[:exceededAt+1]) - 1; i >= 0; i-- {
+	for i := exceededAt; i >= 0; i-- {
 		switch v := f.acc[i].(type) {
 		case int:
 			if v != delim || !f.canFold(i) {

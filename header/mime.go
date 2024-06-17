@@ -150,6 +150,8 @@ func NewContentDisposition(inline bool, filename string, params map[string]strin
 	if params == nil {
 		params = map[string]string{}
 	}
-	params["filename"] = filename
+	if filename != "" {
+		params["filename"] = filename
+	}
 	return &MIMEHeader{name: "Disposition", val: val, params: params}
 }

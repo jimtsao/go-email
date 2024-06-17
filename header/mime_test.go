@@ -27,17 +27,28 @@ func TestMIMEParam(t *testing.T) {
 	}{
 		{"empty val", header.NewContentDisposition(false, "", nil), ""},
 		{"empty quoted val", header.NewContentDisposition(false, `""`, nil), `; filename=""`},
+		{"convert to quoted string", header.NewContentDisposition(false, `foo bar.txt`, nil), `; filename="foo bar.txt"`},
+		{"convert to extended format", header.NewContentDisposition(false, "méow.txt", nil), "; filename*=utf-8''m%C3%A9ow.txt"},
 	} {
 		assert.NoError(t, c.h.Validate(), c.desc)
 		want := fmt.Sprintf("Content-Disposition: attachment%s\r\n", c.want)
 		assert.Equal(t, want, c.h.String(), c.desc)
 	}
 
-	// param quoted
-
-	// param converted to extended format
-
-	// param folded
+	// folding
+	h := header.NewContentType("text/html", map[string]string{
+		"charset":   "utf-8",
+		"param_one": strings.Repeat("i", 80),
+		"param_two": strings.Repeat("i", 80),
+	})
+	assert.NoError(t, h.Validate(), "folding")
+	headerContains(t, h.String(), []string{
+		"; charset=utf-8",
+		";\r\n param_one*0*=utf-8''iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii" +
+			"\r\n param_one*1*=iiiiiiiiiiiiiiiiiiiiiii",
+		";\r\n param_two*0*=utf-8''iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii" +
+			"\r\n param_two*1*=iiiiiiiiiiiiiiiiiiiiiii",
+	})
 }
 
 func TestMIMEContentType(t *testing.T) {
@@ -55,23 +66,6 @@ func TestMIMEContentType(t *testing.T) {
 	h = header.NewContentType("multipart/mixed", map[string]string{"boundary": "(foo)"})
 	assert.NoError(t, h.Validate(), "tspecials")
 	assert.Equal(t, "Content-Type: multipart/mixed; boundary=\"(foo)\"\r\n", h.String(), "tspecials")
-
-	// folding
-	h = header.NewContentType("text/html", map[string]string{
-		"charset":   "utf-8",
-		"param_one": strings.Repeat("i", 80),
-		"param_two": strings.Repeat("i", 80),
-	})
-	assert.NoError(t, h.Validate(), "folding")
-	headerContains(t, h.String(), []string{
-		"; charset=utf-8",
-		";\r\n param_one*0*=utf-8''iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii" +
-			"\r\n param_one*1*=iiiiiiiiiiiiiiiiiiiiiii",
-		";\r\n param_two*0*=utf-8''iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii" +
-			"\r\n param_two*1*=iiiiiiiiiiiiiiiiiiiiiii",
-	})
-	assert.Emptyf(t, h.String(), "%q", h.String())
-
 }
 
 func TestMIMEContentTransferEncoding(t *testing.T) {

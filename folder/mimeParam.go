@@ -39,7 +39,7 @@ type MIMEParam struct {
 func (m MIMEParam) Value() string {
 	// not valid, allow garbage in become garbage out
 	if m.Val == "" || m.Val == `""` {
-		return fmt.Sprintf(";%s=%s", m.Name, m.Val)
+		return fmt.Sprintf("%s=%s", m.Name, m.Val)
 	}
 
 	// regular parameter
@@ -66,19 +66,21 @@ func (m MIMEParam) Fold(limit int) (string, Foldable, bool) {
 		return fmt.Sprintf("%s=%s", m.Name, m.Val), nil, false
 	}
 
+	// regular param form
 	minLen := len(fmt.Sprintf("%s*0*=utf-8''", m.Name))
 	if rv := m.regularVal(); rv != "" &&
 		(len(rv) <= limit || limit <= minLen) {
 		return rv, nil, false
 	}
+
+	// extended param form
 	ev := m.extendedVal()
 	if len(ev) <= limit || limit <= minLen {
 		return ev, nil, false
 	}
 
-	// extended parameter format
+	// extended parameter format -- needs folding
 	sb := strings.Builder{}
-	sb.WriteString(";")
 	var iteration int
 	remaining := m.dequote()
 
@@ -87,16 +89,16 @@ func (m MIMEParam) Fold(limit int) (string, Foldable, bool) {
 		// begin new iteration
 		var part string
 		if iteration == 0 {
-			part = fmt.Sprintf("%s%s*%d*=utf-8''", fwsToken, m.Name, iteration)
+			part = fmt.Sprintf("%s*%d*=utf-8''", m.Name, iteration)
+			limit -= len(part)
 		} else {
 			part = fmt.Sprintf("%s%s*%d*=", fwsToken, m.Name, iteration)
-
+			limit -= len(part) - len("\r\n")
 		}
-		limit = maxLineLen - len(part) + len("\r\n")
-		var r rune
-		var i, runeLen int
 
 		// find index where length exceeds limit
+		var r rune
+		var i, runeLen int
 		for i = 0; i < len(remaining); i += runeLen {
 			r, runeLen = utf8.DecodeRuneInString(remaining[i:])
 			encRune := url.PathEscape(string(r))
@@ -126,6 +128,9 @@ func (m MIMEParam) Fold(limit int) (string, Foldable, bool) {
 		sb.WriteString(part)
 		iteration++
 
+		// reset limit
+		limit = maxLineLen
+
 		// nothing left to write
 		if remaining == "" {
 			break
@@ -135,39 +140,31 @@ func (m MIMEParam) Fold(limit int) (string, Foldable, bool) {
 	return sb.String(), nil, true
 }
 
-func (m MIMEParam) requiresExtendedForm() bool {
-	if m.Val == "" || m.Val == `""` {
-		return false
-	}
-
-	return m.regularVal() != ""
-}
-
 // checks if val is:
 //
-//   - token or convertable to token
-//   - quoted string or convertable to quoted string
+//   - token
+//   - quoted string or convertible to quoted string
 //
 // returns empty string if neither possible
 func (m MIMEParam) regularVal() string {
 	// token
-	if syntax.IsMIMEToken(m.dequote()) {
-		return fmt.Sprintf(";%s=%s", m.Name, m.dequote())
+	if syntax.IsMIMEToken(m.Val) {
+		return fmt.Sprintf("%s=%s", m.Name, m.Val)
 	}
 
 	// quoted string
 	if syntax.IsQuotedString(m.Val) {
-		return fmt.Sprintf(";%s=%s", m.Name, m.Val)
+		return fmt.Sprintf("%s=%s", m.Name, m.Val)
 	}
 	if syntax.IsQuotedString(fmt.Sprintf("\"%s\"", m.Val)) {
-		return fmt.Sprintf(";%s=\"%s\"", m.Name, m.Val)
+		return fmt.Sprintf("%s=\"%s\"", m.Name, m.Val)
 	}
 	return ""
 }
 
 func (m MIMEParam) extendedVal() string {
 	val := url.PathEscape(m.dequote())
-	return fmt.Sprintf(";%s*=utf-8''%s", m.Name, val)
+	return fmt.Sprintf("%s*=utf-8''%s", m.Name, val)
 }
 
 // dequote if param val is quoted string
