@@ -9,13 +9,14 @@ import (
 //
 // For full control use mime.Entity directly
 type Email struct {
-	From    string
-	To      string // accepts comma-separated list
-	Cc      string // accepts comma-separated list
-	Bcc     string // accepts comma-separated list
-	Subject string // can contain any printable unicode characters
-	Body    string
-	headers []header.Header
+	From        string
+	To          string // accepts comma-separated list
+	Cc          string // accepts comma-separated list
+	Bcc         string // accepts comma-separated list
+	Subject     string // can contain any printable unicode characters
+	Body        string
+	Attachments []Attachment
+	headers     []header.Header
 }
 
 func New() *Email {
@@ -40,13 +41,24 @@ func (e *Email) Raw() string {
 	// body
 	body := e.Body
 
-	// header
+	// headers
 	hh := e.getHeaders()
 	ct, cs := mime.DetectContentType([]byte(body))
 	if cs == "" {
 		hh = append(hh, header.NewContentType(ct, nil))
 	} else {
 		hh = append(hh, header.NewContentType(ct, header.NewMIMEParams("charset", cs)))
+	}
+
+	// inline attachments go into multipart/related
+	// non-inline attachments go into multipart/mixed
+	var inline, attached []*mime.Entity
+	for _, att := range e.Attachments {
+		if att.Inline {
+			inline = append(inline, mime.NewEntity(nil, ""))
+		} else {
+			attached = append(attached, mime.NewEntity(nil, ""))
+		}
 	}
 
 	ent := mime.NewEntity(hh, body)
