@@ -5,6 +5,8 @@ import (
 	"time"
 )
 
+const TimeRFC5322 = "Mon, 2 Jan 2006 15:04:05 -0700"
+
 // Date represents the 'Date' header field
 //
 // Syntax:
@@ -36,6 +38,6 @@ func (d Date) Validate() error {
 }
 
 func (d Date) String() string {
-	dt := datetime(d)
+	dt := time.Time(d).Format(TimeRFC5322)
 	return fmt.Sprintf("%s: %s\r\n", d.Name(), dt)
 }
