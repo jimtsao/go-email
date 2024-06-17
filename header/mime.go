@@ -84,10 +84,12 @@ func (m *MIMEContentType) String() string {
 	// params
 	for attr, val := range m.Params {
 		f.Write(";", 1, " ")
+		mp := folder.MIMEParam{Name: attr, Val: val}
 		if syntax.ContainsTSpecials(val) {
-			f.Write(fmt.Sprintf("%s=\"%s\"", attr, val))
+			mp.Val = `"` + mp.Val + `"`
+			f.Write(mp)
 		} else {
-			f.Write(fmt.Sprintf("%s=%s", attr, val))
+			f.Write(mp)
 		}
 	}
 

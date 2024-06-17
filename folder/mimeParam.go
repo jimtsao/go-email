@@ -37,9 +37,17 @@ type MIMEParam struct {
 }
 
 func (m MIMEParam) Value() string {
+	// not valid, allow garbage in become garbage out
+	if m.Val == "" || m.Val == `""` {
+		return fmt.Sprintf(";%s=%s", m.Name, m.Val)
+	}
+
+	// regular parameter
 	if rv := m.regularVal(); rv != "" {
 		return rv
 	}
+
+	// extended parameter
 	return m.extendedVal()
 }
 
@@ -47,13 +55,24 @@ func (m MIMEParam) Length() int {
 	return len(m.Value())
 }
 
+// Fold performs both encoding and folding, though it probably should not
+// according to Single Responsibility Principle. However since both encoded
+// and folded form have the same extended parameter syntax, we deduplicate
+// work by only accepting unencoded values and deciding whether to encode/fold
+// at the same time
 func (m MIMEParam) Fold(limit int) (string, Foldable, bool) {
-	// no fold
-	if rv := m.regularVal(); rv != "" && len(rv) <= limit {
+	// no extended param form -- empty val
+	if m.Val == "" || m.Val == `""` {
+		return fmt.Sprintf("%s=%s", m.Name, m.Val), nil, false
+	}
+
+	minLen := len(fmt.Sprintf("%s*0*=utf-8''", m.Name))
+	if rv := m.regularVal(); rv != "" &&
+		(len(rv) <= limit || limit <= minLen) {
 		return rv, nil, false
 	}
 	ev := m.extendedVal()
-	if len(ev) <= limit {
+	if len(ev) <= limit || limit <= minLen {
 		return ev, nil, false
 	}
 
@@ -116,8 +135,20 @@ func (m MIMEParam) Fold(limit int) (string, Foldable, bool) {
 	return sb.String(), nil, true
 }
 
-// checks if val is token, convertable to token, quoted string or convertable to quoted string
-// returns empty string if none of these options possible
+func (m MIMEParam) requiresExtendedForm() bool {
+	if m.Val == "" || m.Val == `""` {
+		return false
+	}
+
+	return m.regularVal() != ""
+}
+
+// checks if val is:
+//
+//   - token or convertable to token
+//   - quoted string or convertable to quoted string
+//
+// returns empty string if neither possible
 func (m MIMEParam) regularVal() string {
 	// token
 	if syntax.IsMIMEToken(m.dequote()) {

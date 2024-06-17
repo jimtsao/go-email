@@ -19,6 +19,27 @@ func headerContains(t *testing.T, header string, contains []string) {
 	}
 }
 
+func TestMIMEParam(t *testing.T) {
+	for _, c := range []struct {
+		desc string
+		h    header.Header
+		want string
+	}{
+		{"empty val", header.MIMEContentDisposition{Filename: ""}, ""},
+		{"empty quoted val", header.MIMEContentDisposition{Filename: `""`}, `; filename=""`},
+	} {
+		assert.NoError(t, c.h.Validate(), c.desc)
+		want := fmt.Sprintf("Content-Disposition: attachment%s\r\n", c.want)
+		assert.Equal(t, want, c.h.String(), c.desc)
+	}
+
+	// param quoted
+
+	// param converted to extended format
+
+	// param folded
+}
+
 func TestMIMEContentType(t *testing.T) {
 	// text/plain
 	h := &header.MIMEContentType{
