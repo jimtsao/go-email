@@ -46,21 +46,11 @@ type Entity struct {
 // Usage:
 //
 //	NewEntity("text/plain", "hello world", "charset", "utf-8")
-func NewEntity(ContentType string, Data string, Params ...string) *Entity {
-	params := map[string]string{}
-	var key string
-	for idx, v := range Params {
-		if idx%2 == 0 {
-			key = v
-			params[key] = ""
-		} else {
-			params[key] = v
-		}
-	}
-
+func NewEntity(contentType string, data string, params ...string) *Entity {
 	return &Entity{
-		Headers: []header.Header{header.NewContentType(ContentType, params)},
-		Body:    String(Data),
+		Headers: []header.Header{
+			header.NewContentType(contentType, header.NewMIMEParams(params...))},
+		Body: String(data),
 	}
 }
 

@@ -117,6 +117,6 @@ func NewMultipart(subtype string, headers []header.Header, parts []*Entity) *Ent
 	return &Entity{
 		Headers: append(headers, header.NewContentType(
 			"multipart/"+subtype,
-			map[string]string{"boundary": boundary})),
+			header.NewMIMEParams("boundary", boundary))),
 		Body: &multipartBody{boundary: boundary, parts: parts}}
 }

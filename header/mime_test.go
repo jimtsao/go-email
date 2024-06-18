@@ -11,14 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func headerContains(t *testing.T, header string, contains []string) {
-	for _, h := range contains {
-		before, after, found := strings.Cut(header, h)
-		assert.Truef(t, found, "missing header: %s", h)
-		header = before + after
-	}
-}
-
 func TestMIMEParam(t *testing.T) {
 	for _, c := range []struct {
 		desc string
@@ -36,24 +28,23 @@ func TestMIMEParam(t *testing.T) {
 	}
 
 	// folding
-	h := header.NewContentType("text/html", map[string]string{
-		"charset":   "utf-8",
-		"param_one": strings.Repeat("i", 80),
-		"param_two": strings.Repeat("i", 80),
-	})
+	h := header.NewContentType("text/html",
+		header.NewMIMEParams(
+			"charset", "utf-8",
+			"param_one", strings.Repeat("i", 80),
+			"param_two", strings.Repeat("i", 80)))
 	assert.NoError(t, h.Validate(), "folding")
-	headerContains(t, h.String(), []string{
-		"; charset=utf-8",
-		";\r\n param_one*0*=utf-8''iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii" +
-			"\r\n param_one*1*=iiiiiiiiiiiiiiiiiiiiiii",
-		";\r\n param_two*0*=utf-8''iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii" +
-			"\r\n param_two*1*=iiiiiiiiiiiiiiiiiiiiiii",
-	})
+	want := "Content-Type: text/html; charset=utf-8;" +
+		"\r\n param_one*0*=utf-8''iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii" +
+		"\r\n param_one*1*=iiiiiiiiiiiiiiiiiiiiiii;" +
+		"\r\n param_two*0*=utf-8''iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii" +
+		"\r\n param_two*1*=iiiiiiiiiiiiiiiiiiiiiii\r\n"
+	assert.Equal(t, want, h.String())
 }
 
 func TestMIMEContentType(t *testing.T) {
 	// text/plain
-	h := header.NewContentType("text/plain", map[string]string{"charset": "us-ascii"})
+	h := header.NewContentType("text/plain", header.NewMIMEParams("charset", "us-ascii"))
 	assert.NoError(t, h.Validate(), "text/plain")
 	assert.Equal(t, "Content-Type: text/plain; charset=us-ascii\r\n", h.String(), "text/plain")
 
@@ -63,7 +54,7 @@ func TestMIMEContentType(t *testing.T) {
 	assert.Equal(t, "Content-Type: text/html; charset=utf-8\r\n", h.String(), "detect type")
 
 	// tspecial
-	h = header.NewContentType("multipart/mixed", map[string]string{"boundary": "(foo)"})
+	h = header.NewContentType("multipart/mixed", header.NewMIMEParams("boundary", "(foo)"))
 	assert.NoError(t, h.Validate(), "tspecials")
 	assert.Equal(t, "Content-Type: multipart/mixed; boundary=\"(foo)\"\r\n", h.String(), "tspecials")
 }
@@ -93,18 +84,18 @@ func TestMIMEContentDisposition(t *testing.T) {
 	rtime := time.Date(1990, time.April, 3, 5, 30, 15, 20, sydney)
 	rdate := "Tue, 3 Apr 1990 05:30:15 +1000"
 
-	h := header.NewContentDisposition(false, "foo.txt", map[string]string{
-		"creation-date":     ctime.Format(header.TimeRFC5322),
-		"modification-date": mtime.Format(header.TimeRFC5322),
-		"read-date":         rtime.Format(header.TimeRFC5322),
-		"size":              "1024",
-	})
+	h := header.NewContentDisposition(false, "foo.txt",
+		header.NewMIMEParams(
+			"creation-date", ctime.Format(header.TimeRFC5322),
+			"modification-date", mtime.Format(header.TimeRFC5322),
+			"read-date", rtime.Format(header.TimeRFC5322),
+			"size", "1024"))
 	err := h.Validate()
 	assert.NoError(t, err)
-	want := "Content-Disposition: attachment; filename=\"foo.txt\"" +
-		";\r\n creation-date=\"" + cdate + "\"" +
-		";\r\n modification-date=\"" + mdate + "\"" +
-		";\r\n read-date=\"" + rdate + "\"" + "; size=1024" +
+	want := "Content-Disposition: attachment; filename=foo.txt" +
+		";\r\n creation-date=\"" + cdate + `"` +
+		";\r\n modification-date=\"" + mdate + `"` +
+		";\r\n read-date=\"" + rdate + `"` + "; size=1024" +
 		"\r\n"
 	assert.Equal(t, want, h.String())
 }

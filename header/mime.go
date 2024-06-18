@@ -25,6 +25,24 @@ func (m MIMEVersion) String() string {
 	return "MIME-Version: 1.0\r\n"
 }
 
+type MIMEParam struct {
+	Attribute string
+	Value     string
+}
+
+// NewMIMEParams returns mime param array. Input format:
+//
+//	attribute, value, attribute, value...
+func NewMIMEParams(params ...string) []MIMEParam {
+	mp := []MIMEParam{}
+	for idx, v := range params {
+		if idx%2 == 1 {
+			mp = append(mp, MIMEParam{params[idx-1], v})
+		}
+	}
+	return mp
+}
+
 // MIMEHeader represents a Content-[Name] header:
 //
 //	parameter        :=   attribute "=" value
@@ -38,12 +56,12 @@ func (m MIMEVersion) String() string {
 type MIMEHeader struct {
 	name     string
 	val      string
-	params   map[string]string
+	params   []MIMEParam
 	validate func() error
 }
 
 // NewMIMEHeader returns a Content-[name] MIME header
-func NewMIMEHeader(name string, val string, params map[string]string) *MIMEHeader {
+func NewMIMEHeader(name string, val string, params []MIMEParam) *MIMEHeader {
 	return &MIMEHeader{name: name, val: val, params: params}
 }
 
@@ -65,8 +83,8 @@ func (m *MIMEHeader) String() string {
 	f.Write(m.Name()+":", 2, " ", m.val)
 
 	// params
-	for attr, val := range m.params {
-		mp := folder.MIMEParam{Name: attr, Val: val}
+	for _, p := range m.params {
+		mp := folder.MIMEParam{Name: p.Attribute, Val: p.Value}
 		f.Write(";", 1, " ", mp)
 	}
 
@@ -83,7 +101,7 @@ func (m *MIMEHeader) String() string {
 //	                      "application" / extension-token
 //	composite-type   :=   "message" / "multipart" / extension-token
 //	subtype          :=   extension-token / iana-token
-func NewContentType(val string, params map[string]string) *MIMEHeader {
+func NewContentType(val string, params []MIMEParam) *MIMEHeader {
 	return &MIMEHeader{name: "Type", val: val, params: params}
 }
 
@@ -93,7 +111,7 @@ func NewContentTypeFrom(data []byte) *MIMEHeader {
 	return &MIMEHeader{
 		name:   "Type",
 		val:    ct,
-		params: map[string]string{"charset": cs}}
+		params: NewMIMEParams("charset", cs)}
 }
 
 // NewContentTransferEncoding returns 'Content-Transfer-Encoding' header:
@@ -142,16 +160,14 @@ func NewContentID(val string) *MIMEHeader {
 //	quoted-date-time       := quoted-string
 //	                          ; contents MUST be an RFC 822 `date-time'
 //	                          ; numeric timezones (+HHMM or -HHMM) MUST be used
-func NewContentDisposition(inline bool, filename string, params map[string]string) *MIMEHeader {
+func NewContentDisposition(inline bool, filename string, params []MIMEParam) *MIMEHeader {
 	val := "attachment"
 	if inline {
 		val = "inline"
 	}
-	if params == nil {
-		params = map[string]string{}
-	}
+	p := params
 	if filename != "" {
-		params["filename"] = filename
+		p = append(NewMIMEParams("filename", filename), params...)
 	}
-	return &MIMEHeader{name: "Disposition", val: val, params: params}
+	return &MIMEHeader{name: "Disposition", val: val, params: p}
 }
