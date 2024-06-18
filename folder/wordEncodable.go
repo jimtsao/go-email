@@ -8,9 +8,9 @@ import (
 )
 
 type wordEncodable struct {
-	Decoded    string
-	Enc        mime.WordEncoder
-	MustEncode bool
+	decoded    string
+	enc        mime.WordEncoder
+	mustEncode bool
 }
 
 // NewWordEncodable represents a managed optionally encodable string that handles
@@ -22,7 +22,7 @@ func NewWordEncodable(decoded string, encoder mime.WordEncoder, mustEncode bool)
 }
 
 func (w wordEncodable) Value() string {
-	return w.encode(w.Decoded, w.MustEncode)
+	return w.encode(w.decoded, w.mustEncode)
 }
 
 func (w wordEncodable) Length() int {
@@ -37,7 +37,7 @@ func (w wordEncodable) Fold(limit int) (split string, rest Foldable, didFold boo
 
 	// adjust limit
 	var maxContentLen int
-	if w.Enc == mime.QEncoding {
+	if w.enc == mime.QEncoding {
 		// quoted-printable has max limit of 75, we cap limit to this
 		// eg on a newly folded line, the limit can be 78 - 1 (whitespace)
 		// which results in 2 encoded words where we only want 1
@@ -60,19 +60,19 @@ func (w wordEncodable) Fold(limit int) (split string, rest Foldable, didFold boo
 
 	// go rune by rune
 	var runeLen int
-	for i := 0; i < len(w.Decoded); i += runeLen {
+	for i := 0; i < len(w.decoded); i += runeLen {
 		// figure out encoded length of rune
 		var encLen int
-		b := w.Decoded[i]
-		if w.Enc == mime.QEncoding {
+		b := w.decoded[i]
+		if w.enc == mime.QEncoding {
 			if b >= ' ' && b <= '~' && b != '=' && b != '?' && b != '_' {
 				runeLen, encLen = 1, 1
 			} else {
-				_, runeLen = utf8.DecodeRuneInString(w.Decoded[i:])
+				_, runeLen = utf8.DecodeRuneInString(w.decoded[i:])
 				encLen = 3 * runeLen
 			}
 		} else {
-			_, runeLen = utf8.DecodeRuneInString(w.Decoded[i:])
+			_, runeLen = utf8.DecodeRuneInString(w.decoded[i:])
 			encLen = runeLen
 		}
 
@@ -82,11 +82,11 @@ func (w wordEncodable) Fold(limit int) (split string, rest Foldable, didFold boo
 			if i == 0 {
 				return "", nil, false
 			}
-			split := w.encode(w.Decoded[:i], true)
+			split := w.encode(w.decoded[:i], true)
 			rest := wordEncodable{
-				Decoded:    w.Decoded[i:],
-				Enc:        w.Enc,
-				MustEncode: true,
+				decoded:    w.decoded[i:],
+				enc:        w.enc,
+				mustEncode: true,
 			}
 			return split, rest, true
 		}
@@ -101,14 +101,14 @@ func (w wordEncodable) Fold(limit int) (split string, rest Foldable, didFold boo
 
 func (w wordEncodable) encode(s string, force bool) string {
 	if !force {
-		return w.Enc.Encode("utf-8", w.Decoded)
+		return w.enc.Encode("utf-8", w.decoded)
 	}
 
 	// force encode
-	if w.Enc == mime.QEncoding {
+	if w.enc == mime.QEncoding {
 		// extra fits exactly 1 full length 75 octet encoded word
 		extra := "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
-		s = w.Enc.Encode("utf-8", extra+s)
+		s = mime.QEncoding.Encode("utf-8", extra+s)
 		return s[76:]
 	}
 
