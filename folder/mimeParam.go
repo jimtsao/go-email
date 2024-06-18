@@ -32,14 +32,14 @@ import (
 //	charset                :=   <registered character set name>
 //	language               :=   <registered language tag [RFC-1766]>
 type MIMEParam struct {
-	Name string
-	Val  string
+	Attribute string
+	Val       string
 }
 
 func (m MIMEParam) Value() string {
 	// not valid, allow garbage in become garbage out
 	if m.Val == "" || m.Val == `""` {
-		return fmt.Sprintf("%s=%s", m.Name, m.Val)
+		return fmt.Sprintf("%s=%s", m.Attribute, m.Val)
 	}
 
 	// regular parameter
@@ -63,11 +63,11 @@ func (m MIMEParam) Length() int {
 func (m MIMEParam) Fold(limit int) (string, Foldable, bool) {
 	// no extended param form -- empty val
 	if m.Val == "" || m.Val == `""` {
-		return fmt.Sprintf("%s=%s", m.Name, m.Val), nil, false
+		return fmt.Sprintf("%s=%s", m.Attribute, m.Val), nil, false
 	}
 
 	// regular param form
-	minLen := len(fmt.Sprintf("%s*0*=utf-8''", m.Name))
+	minLen := len(fmt.Sprintf("%s*0*=utf-8''", m.Attribute))
 	if rv := m.regularVal(); rv != "" &&
 		(len(rv) <= limit || limit <= minLen) {
 		return rv, nil, false
@@ -89,10 +89,10 @@ func (m MIMEParam) Fold(limit int) (string, Foldable, bool) {
 		// begin new iteration
 		var part string
 		if iteration == 0 {
-			part = fmt.Sprintf("%s*%d*=utf-8''", m.Name, iteration)
+			part = fmt.Sprintf("%s*%d*=utf-8''", m.Attribute, iteration)
 			limit -= len(part)
 		} else {
-			part = fmt.Sprintf("%s%s*%d*=", fwsToken, m.Name, iteration)
+			part = fmt.Sprintf("%s%s*%d*=", fwsToken, m.Attribute, iteration)
 			limit -= len(part) - len("\r\n")
 		}
 
@@ -149,22 +149,22 @@ func (m MIMEParam) Fold(limit int) (string, Foldable, bool) {
 func (m MIMEParam) regularVal() string {
 	// token
 	if syntax.IsMIMEToken(m.Val) {
-		return fmt.Sprintf("%s=%s", m.Name, m.Val)
+		return fmt.Sprintf("%s=%s", m.Attribute, m.Val)
 	}
 
 	// quoted string
 	if syntax.IsQuotedString(m.Val) {
-		return fmt.Sprintf("%s=%s", m.Name, m.Val)
+		return fmt.Sprintf("%s=%s", m.Attribute, m.Val)
 	}
 	if syntax.IsQuotedString(fmt.Sprintf("\"%s\"", m.Val)) {
-		return fmt.Sprintf("%s=\"%s\"", m.Name, m.Val)
+		return fmt.Sprintf("%s=\"%s\"", m.Attribute, m.Val)
 	}
 	return ""
 }
 
 func (m MIMEParam) extendedVal() string {
 	val := url.PathEscape(m.dequote())
-	return fmt.Sprintf("%s*=utf-8''%s", m.Name, val)
+	return fmt.Sprintf("%s*=utf-8''%s", m.Attribute, val)
 }
 
 // dequote if param val is quoted string

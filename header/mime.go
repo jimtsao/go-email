@@ -84,7 +84,7 @@ func (m *MIMEHeader) String() string {
 
 	// params
 	for _, p := range m.params {
-		mp := folder.MIMEParam{Name: p.Attribute, Val: p.Value}
+		mp := folder.MIMEParam{Attribute: p.Attribute, Val: p.Value}
 		f.Write(";", 1, " ", mp)
 	}
 
