@@ -26,8 +26,9 @@ func TestMIMEParam(t *testing.T) {
 		want := fmt.Sprintf("Content-Disposition: attachment%s\r\n", c.want)
 		assert.Equal(t, want, c.h.String(), c.desc)
 	}
+}
 
-	// folding
+func TestMIMEParamFolding(t *testing.T) {
 	h := header.NewContentType("text/html",
 		header.NewMIMEParams(
 			"charset", "utf-8",

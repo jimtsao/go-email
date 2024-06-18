@@ -32,27 +32,20 @@ import (
 //	charset                :=   <registered character set name>
 //	language               :=   <registered language tag [RFC-1766]>
 type MIMEParam struct {
-	Attribute string
-	Val       string
+	Attribute    string
+	Val          string
+	FoldPriority int
 }
 
 func (m MIMEParam) Value() string {
-	// not valid, allow garbage in become garbage out
-	if m.Val == "" || m.Val == `""` {
-		return fmt.Sprintf("%s=%s", m.Attribute, m.Val)
+	if m.requiresExtendedFormat() {
+		return m.extendedVal()
 	}
-
-	// regular parameter
-	if rv := m.regularVal(); rv != "" {
-		return rv
-	}
-
-	// extended parameter
-	return m.extendedVal()
+	return m.regularVal()
 }
 
-func (m MIMEParam) Length() int {
-	return len(m.Value())
+func (m MIMEParam) Priority() int {
+	return m.FoldPriority
 }
 
 // Fold performs both encoding and folding, though it probably should not
@@ -60,25 +53,19 @@ func (m MIMEParam) Length() int {
 // and folded form have the same extended parameter syntax, we deduplicate
 // work by only accepting unencoded values and deciding whether to encode/fold
 // at the same time
-func (m MIMEParam) Fold(limit int) (string, Foldable, bool) {
-	// no extended param form -- empty val
+func (m MIMEParam) Fold(limit int) string {
+	// no fold - empty val
 	if m.Val == "" || m.Val == `""` {
-		return fmt.Sprintf("%s=%s", m.Attribute, m.Val), nil, false
+		return ""
 	}
 
-	// regular param form
+	// no fold - within limit or unattainable limit
 	minLen := len(fmt.Sprintf("%s*0*=utf-8''", m.Attribute))
-	if rv := m.regularVal(); rv != "" && (len(rv) <= limit || limit <= minLen) {
-		return rv, nil, false
+	if len(m.Value()) <= limit || limit <= minLen {
+		return ""
 	}
 
-	// extended param form
-	ev := m.extendedVal()
-	if len(ev) <= limit || limit <= minLen {
-		return ev, nil, false
-	}
-
-	// extended parameter format -- needs folding
+	// requires folding
 	sb := strings.Builder{}
 	var iteration int
 	remaining := m.dequote()
@@ -107,7 +94,7 @@ func (m MIMEParam) Fold(limit int) (string, Foldable, bool) {
 			if encLen > limit {
 				// cant split even 1 single rune
 				if i == 0 {
-					return "", nil, false
+					return ""
 				}
 
 				// stop at current index
@@ -127,53 +114,48 @@ func (m MIMEParam) Fold(limit int) (string, Foldable, bool) {
 		sb.WriteString(part)
 		iteration++
 
-		// reset limit
-		limit = maxLineLen
-
 		// nothing left to write
 		if remaining == "" {
 			break
 		}
+
+		// reset limit
+		limit = maxLineLen
 	}
 
-	return sb.String(), nil, true
+	return sb.String()
 }
 
-// checks if val is:
-//
-//   - token or convertible to token
-//   - quoted string or convertible to quoted string
-//
-// returns empty string if neither possible
-func (m MIMEParam) regularVal() string {
-	// token
-	if syntax.IsMIMEToken(m.Val) {
-		return fmt.Sprintf("%s=%s", m.Attribute, m.Val)
-	}
-	if syntax.IsMIMEToken(m.dequote()) {
-		return fmt.Sprintf("%s=%s", m.Attribute, m.dequote())
-	}
+// regular param value := token / quoted-string
+func (m MIMEParam) requiresExtendedFormat() bool {
+	// technically token and quoted string requires at least 1 char
+	// but we allow garbage in garbage out, it is more correct
+	// to display it as garbage regular param than garbage extended param
+	return m.Val != "" && m.Val != `""` &&
+		!syntax.IsMIMEToken(m.Val) && !syntax.IsQuotedString(m.Val) &&
+		!syntax.IsQuotedString(`"`+m.Val+`"`)
+}
 
-	// quoted string
-	if syntax.IsQuotedString(m.Val) {
-		return fmt.Sprintf("%s=%s", m.Attribute, m.Val)
-	}
-	if syntax.IsQuotedString(fmt.Sprintf("\"%s\"", m.Val)) {
+func (m MIMEParam) regularVal() string {
+	// value valid only if quoted string
+	if !syntax.IsMIMEToken(m.Val) &&
+		!syntax.IsQuotedString(m.Val) &&
+		syntax.IsQuotedString(`"`+m.Val+`"`) {
 		return fmt.Sprintf("%s=\"%s\"", m.Attribute, m.Val)
 	}
-	return ""
+
+	// return value unchanged
+	return fmt.Sprintf("%s=%s", m.Attribute, m.Val)
 }
 
 func (m MIMEParam) extendedVal() string {
-	val := url.PathEscape(m.dequote())
+	val := m.dequote()
+	val = url.PathEscape(val)
 	return fmt.Sprintf("%s*=utf-8''%s", m.Attribute, val)
 }
 
-// dequote if param val is quoted string
 func (m MIMEParam) dequote() string {
-	if len(m.Val) >= 2 &&
-		m.Val[0] == '"' &&
-		m.Val[len(m.Val)-1] == '"' {
+	if len(m.Val) >= 2 && m.Val[0] == '"' && m.Val[len(m.Val)-1] == '"' {
 		return m.Val[1 : len(m.Val)-1]
 	}
 	return m.Val

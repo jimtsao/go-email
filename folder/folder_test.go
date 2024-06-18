@@ -2,6 +2,7 @@ package folder_test
 
 import (
 	"fmt"
+	"mime"
 	"strings"
 	"testing"
 
@@ -55,6 +56,14 @@ func TestFolding(t *testing.T) {
 
 	// test cases
 	tcs := []testcase{
+		{desc: "0 priority ignored",
+			input: []interface{}{s(40), 0, s(40), folder.WordEncodable{
+				Decoded:      "iii",
+				Enc:          mime.QEncoding,
+				MustEncode:   true,
+				FoldPriority: 0,
+			}},
+			want: strings.Repeat("i", 80) + "=?utf-8?q?iii?="},
 		{desc: "priority respected",
 			input: []interface{}{s(37), 2, s(37), 1, "foo"},
 			want:  fmt.Sprintf("%s\r\n %s", s(74), "foo")},

@@ -10,20 +10,20 @@ import (
 )
 
 func TestWordEncodable(t *testing.T) {
-	encwordq := folder.NewWordEncodable("foo bar", mime.QEncoding, true)
-	encwordqm := folder.NewWordEncodable("éoo", mime.QEncoding, true)
-	encwordqq := folder.NewWordEncodable(strings.Repeat("q", 132), mime.QEncoding, true)
-	encwordb := folder.NewWordEncodable("foo bar", mime.BEncoding, true)
-	encwordbm := folder.NewWordEncodable("ffé", mime.BEncoding, true)
-	encwordbb := folder.NewWordEncodable(strings.Repeat("b", 99), mime.BEncoding, true)
+	encwordq := folder.WordEncodable{"foo bar", mime.QEncoding, true, 2}
+	encwordqm := folder.WordEncodable{"éoo", mime.QEncoding, true, 2}
+	encwordqq := folder.WordEncodable{strings.Repeat("q", 132), mime.QEncoding, true, 2}
+	encwordb := folder.WordEncodable{"foo bar", mime.BEncoding, true, 2}
+	encwordbm := folder.WordEncodable{"ffé", mime.BEncoding, true, 2}
+	encwordbb := folder.WordEncodable{strings.Repeat("b", 99), mime.BEncoding, true, 2}
 
 	tcs := []testcase{
 		// plain strings
 		{desc: "plain string (no encode)",
-			input: []interface{}{folder.NewWordEncodable("foo bar", mime.QEncoding, false)},
+			input: []interface{}{folder.WordEncodable{"foo bar", mime.QEncoding, false, 2}},
 			want:  "foo bar"},
 		{desc: "plain string (encode)",
-			input: []interface{}{folder.NewWordEncodable(strings.Repeat("i", 182), mime.QEncoding, false)},
+			input: []interface{}{folder.WordEncodable{strings.Repeat("i", 182), mime.QEncoding, false, 2}},
 			want: fmt.Sprintf("%s\r\n %[2]s\r\n %[2]s",
 				"=?utf-8?q?iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii?=",
 				"=?utf-8?q?iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii?=")},

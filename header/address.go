@@ -164,10 +164,13 @@ func (a Address) writeAddress(addr *mail.Address, f *folder.Folder) {
 		}
 		f.Write(2, " ", d, 1)
 	} else if e != "" {
-		// encoded-word: [CFWS] between encoded words (whereby upon parsing space is ignored)
-		// format: encoded-word[2][space]angle-addr[1]
+		// format: [3:encoded-word][2][space]angle-addr[1]
 		f.Write(
-			folder.NewWordEncodable(addr.Name, mime.QEncoding, true),
+			folder.WordEncodable{
+				Decoded:      addr.Name,
+				Enc:          mime.QEncoding,
+				MustEncode:   true,
+				FoldPriority: 3},
 			2, " ", d, 1)
 	} else {
 		// angle-addr: [CFWS] "<" local @ domain ">" [CFWS]

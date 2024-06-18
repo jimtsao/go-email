@@ -77,14 +77,17 @@ func (m *MIMEHeader) Validate() error {
 }
 
 func (m *MIMEHeader) String() string {
-	// fold using syntax: Content-name:[2][space]val param
+	// format: Content-name:[2][space]val;[1][space][3:param]
 	sb := &strings.Builder{}
 	f := folder.New(sb)
 	f.Write(m.Name()+":", 2, " ", m.val)
 
 	// params
 	for _, p := range m.params {
-		mp := folder.MIMEParam{Attribute: p.Attribute, Val: p.Value}
+		mp := folder.MIMEParam{
+			Attribute:    p.Attribute,
+			Val:          p.Value,
+			FoldPriority: 3}
 		f.Write(";", 1, " ", mp)
 	}
 

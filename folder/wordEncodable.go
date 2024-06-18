@@ -4,108 +4,114 @@ import (
 	"encoding/base64"
 	"fmt"
 	"mime"
+	"strings"
 	"unicode/utf8"
 )
-
-type wordEncodable struct {
-	decoded    string
-	enc        mime.WordEncoder
-	mustEncode bool
-}
 
 // NewWordEncodable represents a managed optionally encodable string that handles
 // folding at a customizable position. This is useful for folding an otherwise long
 // string where a foldable white space may not be present.
 // Non us-ascii will trigger encoding.
-func NewWordEncodable(decoded string, encoder mime.WordEncoder, mustEncode bool) wordEncodable {
-	return wordEncodable{decoded, encoder, mustEncode}
+type WordEncodable struct {
+	Decoded      string
+	Enc          mime.WordEncoder
+	MustEncode   bool
+	FoldPriority int
 }
 
-func (w wordEncodable) Value() string {
-	return w.encode(w.decoded, w.mustEncode)
+func (w WordEncodable) Value() string {
+	return w.encode(w.Decoded, w.MustEncode)
 }
 
-func (w wordEncodable) Length() int {
-	return len(w.Value())
+func (w WordEncodable) Priority() int {
+	return w.FoldPriority
 }
 
-func (w wordEncodable) Fold(limit int) (split string, rest Foldable, didFold bool) {
-	// length within limit
-	if w.Length() <= limit {
-		return w.Value(), nil, false
-	}
+func (w WordEncodable) Fold(limit int) string {
+	sb := strings.Builder{}
+	remaining := w.Decoded
 
-	// adjust limit
-	var maxContentLen int
-	if w.enc == mime.QEncoding {
-		// quoted-printable has max limit of 75, we cap limit to this
-		// eg on a newly folded line, the limit can be 78 - 1 (whitespace)
-		// which results in 2 encoded words where we only want 1
-		if limit > 75 {
-			limit = 75
-		}
-		maxContentLen = limit - len("=?utf-8?q?") - len("?=")
-	} else {
-		if limit > maxLineLen {
-			limit = maxLineLen
-		}
-		maxContentLen = limit - len("=?utf-8?q?") - len("?=")
-		maxContentLen = base64.StdEncoding.DecodedLen(maxContentLen)
-	}
-
-	// quick splittable check
-	if maxContentLen <= 0 {
-		return "", nil, false
-	}
-
-	// go rune by rune
-	var runeLen int
-	for i := 0; i < len(w.decoded); i += runeLen {
-		// figure out encoded length of rune
-		var encLen int
-		b := w.decoded[i]
-		if w.enc == mime.QEncoding {
-			if b >= ' ' && b <= '~' && b != '=' && b != '?' && b != '_' {
-				runeLen, encLen = 1, 1
-			} else {
-				_, runeLen = utf8.DecodeRuneInString(w.decoded[i:])
-				encLen = 3 * runeLen
+	// iterations of folding
+ITERATE:
+	for {
+		// adjust limit
+		var maxContentLen int
+		if w.Enc == mime.QEncoding {
+			// quoted-printable has max limit of 75 octets
+			if limit > 75 {
+				limit = 75
 			}
+			maxContentLen = limit - len("=?utf-8?q?") - len("?=")
 		} else {
-			_, runeLen = utf8.DecodeRuneInString(w.decoded[i:])
-			encLen = runeLen
+			if limit > maxLineLen {
+				limit = maxLineLen
+			}
+			maxContentLen = limit - len("=?utf-8?b?") - len("?=")
+			maxContentLen = base64.StdEncoding.DecodedLen(maxContentLen)
 		}
 
-		// split if this rune will exceed limit
-		if encLen > maxContentLen {
-			// unable to split even 1 rune and stay within limit
-			if i == 0 {
-				return "", nil, false
-			}
-			split := w.encode(w.decoded[:i], true)
-			rest := wordEncodable{
-				decoded:    w.decoded[i:],
-				enc:        w.enc,
-				mustEncode: true,
-			}
-			return split, rest, true
+		// quick foldable check
+		if maxContentLen <= 0 {
+			return ""
 		}
 
-		// otherwise continue onto next rune
-		maxContentLen -= encLen
+		// go rune by rune
+		var runeLen int
+		for i := 0; i < len(remaining); i += runeLen {
+			// figure out encoded length of rune
+			var encLen int
+			b := remaining[i]
+			if w.Enc == mime.QEncoding {
+				if b >= ' ' && b <= '~' && b != '=' && b != '?' && b != '_' {
+					runeLen, encLen = 1, 1
+				} else {
+					_, runeLen = utf8.DecodeRuneInString(remaining[i:])
+					encLen = 3 * runeLen
+				}
+			} else {
+				_, runeLen = utf8.DecodeRuneInString(remaining[i:])
+				encLen = runeLen
+			}
+
+			// fold now if this rune will exceed limit
+			if encLen > maxContentLen {
+				// unable to split even 1 rune and stay within limit
+				if i == 0 {
+					return ""
+				}
+
+				// write folded part
+				split := w.encode(remaining[:i], true)
+				sb.WriteString(split + fwsToken)
+
+				// set remaining part
+				remaining = remaining[i:]
+
+				// reset limit then continue next folding iteration
+				limit = maxLineLen
+				continue ITERATE
+			}
+
+			// otherwise continue onto next rune
+			maxContentLen -= encLen
+		}
+
+		// end of string reached, we are finished
+		remaining = w.encode(remaining, true)
+		sb.WriteString(remaining)
+		break
 	}
 
-	// limit not reached, no need to split
-	return w.Value(), nil, false
+	return sb.String()
 }
 
-func (w wordEncodable) encode(s string, force bool) string {
+func (w WordEncodable) encode(s string, force bool) string {
 	if !force {
-		return w.enc.Encode("utf-8", w.decoded)
+		return w.Enc.Encode("utf-8", w.Decoded)
 	}
 
 	// force encode
-	if w.enc == mime.QEncoding {
+	if w.Enc == mime.QEncoding {
 		// extra fits exactly 1 full length 75 octet encoded word
 		extra := "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
 		s = mime.QEncoding.Encode("utf-8", extra+s)

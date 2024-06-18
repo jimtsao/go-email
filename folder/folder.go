@@ -12,14 +12,15 @@ var fwsToken = "\r\n "
 var spaceLen = len(" ")
 
 type Foldable interface {
-	Value() string // value before optional transformations
-	Fold(limit int) (split string, rest Foldable, didFold bool)
+	Value() string         // value before optional transformations
+	Fold(limit int) string // folded output
+	Priority() int         // folding priority, priority 0 is ignored
 }
 
 type Folder struct {
 	Err     error // io.Writer error
 	w       io.Writer
-	written int           // length written to underlying io.Writer
+	written int           // current line length written
 	acc     []interface{} // accumulator
 	closed  bool
 }
@@ -60,7 +61,9 @@ func (f *Folder) Write(tokens ...interface{}) {
 
 		switch v := tok.(type) {
 		case int:
-			f.acc = append(f.acc, v)
+			if v != 0 {
+				f.acc = append(f.acc, v)
+			}
 		case string, Foldable:
 			f.acc = append(f.acc, v)
 			f.fold()
@@ -95,12 +98,11 @@ func (f *Folder) fold() {
 	// highest priority delimiter up to that token
 	currentLen := f.written
 	var exceededAt, delim int
-	var needsFold, delimFound bool
 	for idx, tok := range f.acc {
 		switch v := tok.(type) {
 		case int:
-			if !delimFound {
-				delimFound = true
+			// register delimiter
+			if delim == 0 {
 				delim = v
 			} else if v < delim {
 				delim = v
@@ -109,26 +111,33 @@ func (f *Folder) fold() {
 			currentLen += len(v)
 			if currentLen > maxLineLen {
 				exceededAt = idx
-				needsFold = true
-				break
+				goto FOLD
 			}
 		case Foldable:
+			// register priority
+			if v.Priority() != 0 {
+				if delim == 0 {
+					delim = v.Priority()
+				} else if v.Priority() < delim {
+					delim = v.Priority()
+				}
+			}
+
+			// track length
 			currentLen += len(v.Value())
 			if currentLen > maxLineLen {
 				exceededAt = idx
-				needsFold = true
-				break
+				goto FOLD
 			}
 		}
 	}
 
 	// line length not exceeded, no need to fold
-	if !needsFold {
-		return
-	}
+	return
 
-	// iterate backwards from the token that exceeds line limit, token by token
-	// to find first suitable place where we can fold
+FOLD:
+	// iterate backwards from the token that exceeds line limit,
+	// token by token to find first suitable place where we can fold
 	for i := exceededAt; i >= 0; i-- {
 		switch v := f.acc[i].(type) {
 		case int:
@@ -140,7 +149,6 @@ func (f *Folder) fold() {
 			oldAcc := f.acc
 			newAcc := f.acc[i+1:]
 			f.acc = append(f.acc[:i], fwsToken)
-
 			if f.flush(); f.Err != nil {
 				f.acc = oldAcc
 				return
@@ -164,31 +172,30 @@ func (f *Folder) fold() {
 			// keep track of current len (written + len of strings up to index)
 			currentLen -= len(v.Value())
 
-			// continue to next token until we find delimiter
-			if delimFound {
+			// do we have folding priority
+			if delim == 0 || v.Priority() != delim {
 				continue
 			}
 
-			// no delimiters to fold at, try to fold current token
-			split, rest, didFold := v.Fold(maxLineLen - currentLen)
-			if !didFold {
+			// attempt to fold
+			output := v.Fold(maxLineLen - currentLen)
+			idx := strings.LastIndex(output, fwsToken)
+
+			if idx == -1 {
 				continue
 			}
 
-			// write the split part
-			oldAcc := f.acc
+			// write the folded part
 			remAcc := f.acc[exceededAt+1:]
-			f.acc = append(f.acc[:exceededAt], split)
-			if rest != nil {
-				f.acc = append(f.acc, fwsToken)
-			}
-			if f.flush(); f.Err != nil {
-				f.acc = oldAcc
-				return
-			}
+			f.acc = append(f.acc[:exceededAt], output)
+			f.flush()
 
-			// set remaining as new accumulator
-			f.acc = append([]interface{}{rest}, remAcc...)
+			// set new written length
+			lastToken := output[idx+len("\r\n"):]
+			f.written = len(lastToken)
+
+			// set remaining tokens as new accumulator
+			f.acc = remAcc
 
 			// keep folding
 			f.written = spaceLen

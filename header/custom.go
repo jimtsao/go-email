@@ -48,11 +48,16 @@ func (u CustomHeader) Validate() error {
 }
 
 func (u CustomHeader) String() string {
+	// format: header-name:[1][space][2:word-encodable]
 	sb := &strings.Builder{}
 	f := folder.New(sb)
 	f.Write(u.Name()+":", 1, " ")
 	if u.WordEncodable {
-		we := folder.NewWordEncodable(u.Value, mime.QEncoding, false)
+		we := folder.WordEncodable{
+			Decoded:      u.Value,
+			Enc:          mime.QEncoding,
+			MustEncode:   false,
+			FoldPriority: 2}
 		f.Write(we)
 	} else {
 		f.Write(u.Value)
