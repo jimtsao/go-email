@@ -68,8 +68,7 @@ func (m MIMEParam) Fold(limit int) (string, Foldable, bool) {
 
 	// regular param form
 	minLen := len(fmt.Sprintf("%s*0*=utf-8''", m.Attribute))
-	if rv := m.regularVal(); rv != "" &&
-		(len(rv) <= limit || limit <= minLen) {
+	if rv := m.regularVal(); rv != "" && (len(rv) <= limit || limit <= minLen) {
 		return rv, nil, false
 	}
 
@@ -142,7 +141,7 @@ func (m MIMEParam) Fold(limit int) (string, Foldable, bool) {
 
 // checks if val is:
 //
-//   - token
+//   - token or convertible to token
 //   - quoted string or convertible to quoted string
 //
 // returns empty string if neither possible
@@ -150,6 +149,9 @@ func (m MIMEParam) regularVal() string {
 	// token
 	if syntax.IsMIMEToken(m.Val) {
 		return fmt.Sprintf("%s=%s", m.Attribute, m.Val)
+	}
+	if syntax.IsMIMEToken(m.dequote()) {
+		return fmt.Sprintf("%s=%s", m.Attribute, m.dequote())
 	}
 
 	// quoted string
