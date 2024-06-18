@@ -12,10 +12,7 @@ var fwsToken = "\r\n "
 var spaceLen = len(" ")
 
 type Foldable interface {
-	// value before optional transformations that may take place
-	// upon folding
 	Value() string // value before optional transformations
-	Length() int   // length of Value
 	Fold(limit int) (split string, rest Foldable, didFold bool)
 }
 
@@ -116,7 +113,7 @@ func (f *Folder) fold() {
 				break
 			}
 		case Foldable:
-			currentLen += v.Length()
+			currentLen += len(v.Value())
 			if currentLen > maxLineLen {
 				exceededAt = idx
 				needsFold = true
@@ -165,7 +162,7 @@ func (f *Folder) fold() {
 			currentLen -= len(v)
 		case Foldable:
 			// keep track of current len (written + len of strings up to index)
-			currentLen -= v.Length()
+			currentLen -= len(v.Value())
 
 			// continue to next token until we find delimiter
 			if delimFound {
