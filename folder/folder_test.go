@@ -37,7 +37,7 @@ func TestNoFolding(t *testing.T) {
 	tcs := []testcase{
 		{desc: "empty values", want: ""},
 		{desc: "within line limit", input: []interface{}{"foo", 1, "bar"}, want: "foobar"},
-		{desc: "foldable whitespace preserved", input: []interface{}{"foo", 1, " ", 1, "bar"}, want: "foo bar"},
+		{desc: "foldable whitespace preserved", input: []interface{}{"foo", folder.FWS(1), 1, "bar"}, want: "foo bar"},
 		{desc: "no foldable locations", input: []interface{}{s(74), "world"}, want: s(74) + "world"},
 	}
 	testCases(t, "To", tcs)
@@ -48,7 +48,7 @@ func TestFolding(t *testing.T) {
 	sb := &strings.Builder{}
 	f := folder.New(sb)
 	f.Write("Reply-To:")
-	f.Write(1, " ", s(80))
+	f.Write(folder.FWS(1), s(80))
 	f.Close()
 	assert.NoError(t, f.Err, "fold after input")
 	want := fmt.Sprintf("Reply-To:\r\n %s\r\n", s(80))
@@ -68,13 +68,13 @@ func TestFolding(t *testing.T) {
 			input: []interface{}{s(37), 2, s(37), 1, "foo"},
 			want:  fmt.Sprintf("%s\r\n %s", s(74), "foo")},
 		{desc: "foldable whitespace consumed",
-			input: []interface{}{s(74), 2, 1, " ", "foo"},
+			input: []interface{}{s(74), 2, folder.FWS(1), "foo"},
 			want:  fmt.Sprintf("%s\r\n %s", s(74), "foo")},
 		{desc: "multiple folding",
 			input: []interface{}{s(37), 1, s(37), 2, s(80)},
 			want:  fmt.Sprintf("%s\r\n %s\r\n %s", s(37), s(37), s(80))},
 		{desc: "whitespaces only after fold",
-			input: []interface{}{s(37), 1, s(37), 1, " ", 1, "\t", 1, " \t"},
+			input: []interface{}{s(37), 1, s(37), folder.FWS(1), 1, "\t", 1, " \t"},
 			want:  fmt.Sprintf("%s\r\n %s%s", s(37), s(37), " \t \t")},
 		{desc: "whitespaces only before fold",
 			input: []interface{}{"foo", 1, 2, s(80)},

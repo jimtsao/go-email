@@ -34,22 +34,22 @@ func TestMIMEParam(t *testing.T) {
 			input: []interface{}{"attachment; ", folder.MIMEParam{"filename", "méow.txt", 1}},
 			want:  "attachment; filename*=utf-8''m%C3%A9ow.txt"},
 		{desc: "fold - simple string",
-			input: []interface{}{"attachment;", 1, " ", folder.MIMEParam{"filename", strings.Repeat("s", 37), 1}},
+			input: []interface{}{"attachment;", folder.FWS(1), folder.MIMEParam{"filename", strings.Repeat("s", 37), 1}},
 			want:  "attachment; filename*0*=utf-8''ssssssssssssssssssssssssss\r\n filename*1*=sssssssssss"},
 		{desc: "fold - priority",
-			input: []interface{}{"attachment;", 1, " ", folder.MIMEParam{"filename", strings.Repeat("s", 69), 2}},
+			input: []interface{}{"attachment;", folder.FWS(1), folder.MIMEParam{"filename", strings.Repeat("s", 69), 2}},
 			want: "attachment;" +
 				"\r\n filename*0*=utf-8''ssssssssssssssssssssssssssssssssssssssssssssssssssssssssss" +
 				"\r\n filename*1*=sssssssssss"},
 		{desc: "fold - multibyte char",
-			input: []interface{}{"attachment;", 1, " ", folder.MIMEParam{"filename", strings.Repeat("s", 55) + "é", 2}},
+			input: []interface{}{"attachment;", folder.FWS(1), folder.MIMEParam{"filename", strings.Repeat("s", 55) + "é", 2}},
 			want: "attachment;\r\n filename*0*=utf-8''sssssssssssssssssssssssssssssssssssssssssssssssssssssss" +
 				"\r\n filename*1*=%C3%A9"},
 		{desc: "fold - dequote",
-			input: []interface{}{"attachment;", 1, " ", folder.MIMEParam{"filename", "\"" + strings.Repeat("s", 37) + "\"", 1}},
+			input: []interface{}{"attachment;", folder.FWS(1), folder.MIMEParam{"filename", "\"" + strings.Repeat("s", 37) + "\"", 1}},
 			want:  "attachment; filename*0*=utf-8''ssssssssssssssssssssssssss\r\n filename*1*=sssssssssss"},
 		{desc: "fold - multiple times",
-			input: []interface{}{"attachment;", 1, " ", folder.MIMEParam{"filename", strings.Repeat("s", 188), 2}},
+			input: []interface{}{"attachment;", folder.FWS(1), folder.MIMEParam{"filename", strings.Repeat("s", 188), 2}},
 			want: "attachment;\r\n filename*0*=utf-8''ssssssssssssssssssssssssssssssssssssssssssssssssssssssssss\r\n" +
 				" filename*1*=sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss\r\n" +
 				" filename*2*=sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss"},

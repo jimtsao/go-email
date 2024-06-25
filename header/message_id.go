@@ -58,7 +58,7 @@ func (m MessageID) String() string {
 	id := msgid(m).string()
 	sb := &strings.Builder{}
 	f := folder.New(sb)
-	f.Write(m.Name()+":", 1, " ", id)
+	f.Write(m.Name()+":", folder.FWS(1), id)
 	f.Close()
 	return sb.String()
 }

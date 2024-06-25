@@ -9,7 +9,6 @@ import (
 const maxLineLen = 78 // octets, excluding CRLF
 
 var fwsToken = "\r\n "
-var spaceLen = len(" ")
 
 type Foldable interface {
 	Value() string         // value before optional transformations
@@ -40,13 +39,7 @@ func New(w io.Writer) *Folder {
 // The positioning of integer values signifies where folding may occur.
 // If no int is specified, no folding will occur.
 //
-// (1) An ascii space preceded by an integer will be treated as an optionally
-// foldable white space. For example::
-//
-//	e.Write("foo", 2, " ", "bar", 1, "baz") => foo bar\r\n baz
-//	e.Write("foo", 1, "bar", "baz") => foobar\r\n baz
-//
-// (2) accepts any token that conforms to Foldable interface
+// Tokens can be int, string or Foldable
 func (f *Folder) Write(tokens ...interface{}) {
 	// checks
 	if f.Err != nil || f.closed {
@@ -141,7 +134,7 @@ FOLD:
 	for i := exceededAt; i >= 0; i-- {
 		switch v := f.acc[i].(type) {
 		case int:
-			if v != delim || !f.canFold(i) {
+			if v != delim || !f.canFold(i, true, true) {
 				continue
 			}
 
@@ -157,13 +150,8 @@ FOLD:
 			// set new accumulator
 			f.acc = newAcc
 
-			// if folded is white space, ignore the white space
-			if len(f.acc) > 0 && f.acc[0] == " " {
-				f.acc = f.acc[1:]
-			}
-
 			// keep trying to fold
-			f.written = spaceLen
+			f.written = len(" ")
 			f.fold()
 			return
 		case string:
@@ -179,15 +167,25 @@ FOLD:
 
 			// attempt to fold
 			output := v.Fold(maxLineLen - currentLen)
-			idx := strings.LastIndex(output, fwsToken)
 
+			// check for fwsToken to confirm fold occurred
+			idx := strings.LastIndex(output, fwsToken)
 			if idx == -1 {
 				continue
 			}
 
+			// if pre or post fold string are all whitespace, we need
+			// to run an additional whitespace check before proceeding
+			lEmpty := strings.TrimLeft(output[:idx], "\t ") == ""
+			rEmpty := strings.TrimLeft(output[idx+len("\r\n"):], "\t ") == ""
+			if lEmpty && !f.canFold(i, true, false) ||
+				rEmpty && !f.canFold(i, false, true) {
+				continue
+			}
+
 			// write the folded part
-			remAcc := f.acc[exceededAt+1:]
-			f.acc = append(f.acc[:exceededAt], output)
+			remAcc := f.acc[i+1:]
+			f.acc = append(f.acc[:i], output)
 			f.flush()
 
 			// set new written length
@@ -198,7 +196,7 @@ FOLD:
 			f.acc = remAcc
 
 			// keep folding
-			f.written = spaceLen
+			f.written = len(" ")
 			f.fold()
 			return
 		}
@@ -209,7 +207,7 @@ FOLD:
 // CFWS MUST NOT be inserted in such a way that any line of a folded header
 // field is made up entirely of WSP characters and nothing else.
 // we check both left and right of index specified does not consist of only WSP
-func (f *Folder) canFold(i int) bool {
+func (f *Folder) canFold(i int, checkLeft bool, checkRight bool) bool {
 	var lok, rok bool
 	for idx := 0; idx < len(f.acc); idx++ {
 		var val string

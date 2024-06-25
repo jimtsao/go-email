@@ -158,11 +158,11 @@ func (a Address) writeAddress(addr *mail.Address, f *folder.Folder) {
 		f.Write(1)
 		for idx, qp := range strings.Split(q, " ") {
 			if idx > 0 {
-				f.Write(3, " ")
+				f.Write(folder.FWS(3))
 			}
 			f.Write(qp)
 		}
-		f.Write(2, " ", d, 1)
+		f.Write(folder.FWS(2), d, 1)
 	} else if e != "" {
 		// format: [3:encoded-word][2][space]angle-addr[1]
 		f.Write(
@@ -171,7 +171,7 @@ func (a Address) writeAddress(addr *mail.Address, f *folder.Folder) {
 				Enc:          mime.QEncoding,
 				MustEncode:   true,
 				FoldPriority: 3},
-			2, " ", d, 1)
+			folder.FWS(2), d, 1)
 	} else {
 		// angle-addr: [CFWS] "<" local @ domain ">" [CFWS]
 		// format: [1]<addr-spec>[1]

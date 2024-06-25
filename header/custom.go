@@ -51,7 +51,7 @@ func (u CustomHeader) String() string {
 	// format: header-name:[1][space][2:word-encodable]
 	sb := &strings.Builder{}
 	f := folder.New(sb)
-	f.Write(u.Name()+":", 1, " ")
+	f.Write(u.Name()+":", folder.FWS(1))
 	if u.WordEncodable {
 		we := folder.WordEncodable{
 			Decoded:      u.Value,

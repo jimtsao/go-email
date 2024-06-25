@@ -80,7 +80,7 @@ func (m *MIMEHeader) String() string {
 	// format: Content-name:[2][space]val;[1][space][3:param]
 	sb := &strings.Builder{}
 	f := folder.New(sb)
-	f.Write(m.Name()+":", 2, " ", m.val)
+	f.Write(m.Name()+":", folder.FWS(2), m.val)
 
 	// params
 	for _, p := range m.params {
@@ -88,7 +88,7 @@ func (m *MIMEHeader) String() string {
 			Attribute:    p.Attribute,
 			Val:          p.Value,
 			FoldPriority: 3}
-		f.Write(";", 1, " ", mp)
+		f.Write(";", folder.FWS(1), mp)
 	}
 
 	f.Close()
