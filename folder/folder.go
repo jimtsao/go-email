@@ -84,13 +84,14 @@ func (f *Folder) flush() {
 	f.acc = []interface{}{}
 }
 
-// fold as many times as needed, consumes tokens from accumulator
-// and recalculates new written length
+// fold as many times as needed, consumes tokens from
+// accumulator and recalculates new written length
 func (f *Folder) fold() {
-	// find first string where line length is exceeded, and
-	// highest priority delimiter up to that token
+	// find first token where line length is exceeded,
+	// and highest priority delimiter up to that token
 	currentLen := f.written
 	var exceededAt, delim int
+
 	for idx, tok := range f.acc {
 		switch v := tok.(type) {
 		case int:
@@ -104,7 +105,9 @@ func (f *Folder) fold() {
 			currentLen += len(v)
 			if currentLen > maxLineLen {
 				exceededAt = idx
-				goto FOLD
+				if f.foldAt(exceededAt, delim, currentLen) {
+					return
+				}
 			}
 		case Foldable:
 			// register priority
@@ -120,18 +123,20 @@ func (f *Folder) fold() {
 			currentLen += len(v.Value())
 			if currentLen > maxLineLen {
 				exceededAt = idx
-				goto FOLD
+				if f.foldAt(exceededAt, delim, currentLen) {
+					return
+				}
 			}
 		}
 	}
 
 	// line length not exceeded, no need to fold
-	return
+}
 
-FOLD:
+func (f *Folder) foldAt(pos int, delim int, currentLen int) bool {
 	// iterate backwards from the token that exceeds line limit,
 	// token by token to find first suitable place where we can fold
-	for i := exceededAt; i >= 0; i-- {
+	for i := pos; i >= 0; i-- {
 		switch v := f.acc[i].(type) {
 		case int:
 			if v != delim || !f.canFold(i, true, true) {
@@ -144,7 +149,7 @@ FOLD:
 			f.acc = append(f.acc[:i], fwsToken)
 			if f.flush(); f.Err != nil {
 				f.acc = oldAcc
-				return
+				break
 			}
 
 			// set new accumulator
@@ -153,7 +158,7 @@ FOLD:
 			// keep trying to fold
 			f.written = len(" ")
 			f.fold()
-			return
+			return true
 		case string:
 			currentLen -= len(v)
 		case Foldable:
@@ -169,47 +174,71 @@ FOLD:
 			output := v.Fold(maxLineLen - currentLen)
 
 			// check for fwsToken to confirm fold occurred
-			idx := strings.LastIndex(output, fwsToken)
-			if idx == -1 {
+			idxFirst := strings.Index(output, fwsToken)
+			idxLast := strings.LastIndex(output, fwsToken)
+			if idxLast == -1 {
 				continue
 			}
 
 			// if pre or post fold string are all whitespace, we need
 			// to run an additional whitespace check before proceeding
-			lEmpty := strings.TrimLeft(output[:idx], "\t ") == ""
-			rEmpty := strings.TrimLeft(output[idx+len("\r\n"):], "\t ") == ""
+			lEmpty := strings.TrimLeft(output[:idxFirst], "\t ") == ""
+			rEmpty := strings.TrimLeft(output[idxLast+len("\r\n"):], "\t ") == ""
 			if lEmpty && !f.canFold(i, true, false) ||
 				rEmpty && !f.canFold(i, false, true) {
 				continue
 			}
 
 			// write the folded part
-			remAcc := f.acc[i+1:]
+			oldAcc := f.acc
+			newAcc := f.acc[i+1:]
 			f.acc = append(f.acc[:i], output)
-			f.flush()
-
+			if f.flush(); f.Err != nil {
+				f.acc = oldAcc
+				break
+			}
 			// set new written length
-			lastToken := output[idx+len("\r\n"):]
+			lastToken := output[idxLast+len("\r\n"):]
 			f.written = len(lastToken)
 
 			// set remaining tokens as new accumulator
-			f.acc = remAcc
+			f.acc = newAcc
 
 			// keep folding
 			f.written = len(" ")
 			f.fold()
-			return
+			return true
 		}
-
 	}
+
+	return false
 }
 
 // CFWS MUST NOT be inserted in such a way that any line of a folded header
 // field is made up entirely of WSP characters and nothing else.
 // we check both left and right of index specified does not consist of only WSP
 func (f *Folder) canFold(i int, checkLeft bool, checkRight bool) bool {
-	var lok, rok bool
-	for idx := 0; idx < len(f.acc); idx++ {
+	// noop
+	if !checkLeft && !checkRight {
+		return true
+	}
+
+	// set check range
+	lok, rok := !checkLeft, !checkRight
+	from, to := 0, len(f.acc)
+	if !checkLeft {
+		from = i
+	}
+	if !checkRight {
+		to = i
+	}
+
+	// run check
+	for idx := from; idx < to; idx++ {
+		if idx == i {
+			continue
+		}
+
 		var val string
 		switch v := f.acc[idx].(type) {
 		case string:
