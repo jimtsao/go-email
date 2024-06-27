@@ -119,6 +119,10 @@ func NewMultipartAlternative(headers []header.Header, parts []*Entity) *Entity {
 	return NewMultipart("alternative", headers, parts)
 }
 
+func NewMultipartRelated(headers []header.Header, parts []*Entity) *Entity {
+	return NewMultipart("related", headers, parts)
+}
+
 // NewMultipart returns an entity with content-type set as multipart/subtype
 func NewMultipart(subtype string, headers []header.Header, parts []*Entity) *Entity {
 	pre := fmt.Sprintf("Content-Type: multipart/%s; boundary=", subtype)
