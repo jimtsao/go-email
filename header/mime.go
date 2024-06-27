@@ -60,22 +60,22 @@ type MIMEHeader struct {
 }
 
 // NewMIMEHeader returns a Content-[name] MIME header
-func NewMIMEHeader(name string, val string, params []MIMEParam) *MIMEHeader {
-	return &MIMEHeader{name: name, val: val, params: params}
+func NewMIMEHeader(name string, val string, params []MIMEParam) MIMEHeader {
+	return MIMEHeader{name: name, val: val, params: params}
 }
 
-func (m *MIMEHeader) Name() string {
+func (m MIMEHeader) Name() string {
 	return fmt.Sprintf("Content-%s", m.name)
 }
 
-func (m *MIMEHeader) Validate() error {
+func (m MIMEHeader) Validate() error {
 	if m.validate == nil {
 		return nil
 	}
 	return m.validate()
 }
 
-func (m *MIMEHeader) String() string {
+func (m MIMEHeader) String() string {
 	// format: Content-name:[2][space]val;[1][space][3:param]
 	sb := &strings.Builder{}
 	f := folder.New(sb)
@@ -103,8 +103,8 @@ func (m *MIMEHeader) String() string {
 //	                      "application" / extension-token
 //	composite-type   :=   "message" / "multipart" / extension-token
 //	subtype          :=   extension-token / iana-token
-func NewContentType(val string, params []MIMEParam) *MIMEHeader {
-	return &MIMEHeader{name: "Type", val: val, params: params}
+func NewContentType(val string, params []MIMEParam) MIMEHeader {
+	return MIMEHeader{name: "Type", val: val, params: params}
 }
 
 // NewContentTransferEncoding returns 'Content-Transfer-Encoding' header:
@@ -112,22 +112,22 @@ func NewContentType(val string, params []MIMEParam) *MIMEHeader {
 //	encoding   :=  "Content-Transfer-Encoding" ":" mechanism
 //	mechanism  :=  "7bit" / "8bit" / "binary" / "quoted-printable" /
 //	               "base64" / ietf-token / x-token
-func NewContentTransferEncoding(val string) *MIMEHeader {
-	return &MIMEHeader{name: "Transfer-Encoding", val: val}
+func NewContentTransferEncoding(val string) MIMEHeader {
+	return MIMEHeader{name: "Transfer-Encoding", val: val}
 }
 
 // NewContentID returns 'Content-ID' header:
 //
 //	content-id = "Content-ID" ":" msg-id
 //	msg-id     = [CFWS] "<" id-left "@" id-right ">" [CFWS]
-func NewContentID(val string) *MIMEHeader {
+func NewContentID(val string) MIMEHeader {
 	validate := func() error {
 		if err := msgid(val).validate(); err != nil {
 			return fmt.Errorf("%s: %w", "Content-ID", err)
 		}
 		return nil
 	}
-	return &MIMEHeader{name: "ID", val: val, validate: validate}
+	return MIMEHeader{name: "ID", val: val, validate: validate}
 }
 
 // MIMEContentDisposition represents the 'Content-Disposition' header
@@ -153,7 +153,7 @@ func NewContentID(val string) *MIMEHeader {
 //	quoted-date-time       := quoted-string
 //	                          ; contents MUST be an RFC 822 `date-time'
 //	                          ; numeric timezones (+HHMM or -HHMM) MUST be used
-func NewContentDisposition(inline bool, filename string, params []MIMEParam) *MIMEHeader {
+func NewContentDisposition(inline bool, filename string, params []MIMEParam) MIMEHeader {
 	val := "attachment"
 	if inline {
 		val = "inline"
@@ -162,5 +162,5 @@ func NewContentDisposition(inline bool, filename string, params []MIMEParam) *MI
 	if filename != "" {
 		p = append(NewMIMEParams("filename", filename), params...)
 	}
-	return &MIMEHeader{name: "Disposition", val: val, params: p}
+	return MIMEHeader{name: "Disposition", val: val, params: p}
 }
