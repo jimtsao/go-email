@@ -3,13 +3,18 @@ package mime_test
 import (
 	"testing"
 
+	"github.com/jimtsao/go-email/header"
 	"github.com/jimtsao/go-email/mime"
 	"github.com/stretchr/testify/assert"
 )
 
 func multipartAlt() (*mime.Entity, string) {
-	text := mime.NewEntity("text/plain", "foo bar", "charset", "us-ascii")
-	html := mime.NewEntity("text/html", "<b>foo bar</b>", "charset", "utf-8")
+	text := mime.NewEntity([]header.Header{
+		header.NewContentType("text/plain", header.NewMIMEParams("charset", "us-ascii")),
+	}, "foo bar")
+	html := mime.NewEntity([]header.Header{
+		header.NewContentType("text/html", header.NewMIMEParams("charset", "utf-8")),
+	}, "<b>foo bar</b>")
 	alt := mime.NewMultipartAlternative(nil, []*mime.Entity{text, html})
 	want := "Content-Type: multipart/alternative; boundary=.*?\r\n" +
 		"\r\n--.*?\r\n" +

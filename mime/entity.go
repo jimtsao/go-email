@@ -41,17 +41,9 @@ type Entity struct {
 	Body    fmt.Stringer
 }
 
-// NewEntity provides a convenient interface for creating an Entity
-//
-// Usage:
-//
-//	NewEntity("text/plain", "hello world", "charset", "utf-8")
-func NewEntity(contentType string, data string, params ...string) *Entity {
-	return &Entity{
-		Headers: []header.Header{
-			header.NewContentType(contentType, header.NewMIMEParams(params...))},
-		Body: String(data),
-	}
+// NewEntity creates a new entity where body is a simple string
+func NewEntity(headers []header.Header, body string) *Entity {
+	return &Entity{Headers: headers, Body: String(body)}
 }
 
 func (e *Entity) String() string {
