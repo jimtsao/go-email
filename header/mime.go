@@ -2,7 +2,6 @@ package header
 
 import (
 	"fmt"
-	"net/http"
 	"strings"
 
 	"github.com/jimtsao/go-email/folder"
@@ -106,15 +105,6 @@ func (m *MIMEHeader) String() string {
 //	subtype          :=   extension-token / iana-token
 func NewContentType(val string, params []MIMEParam) *MIMEHeader {
 	return &MIMEHeader{name: "Type", val: val, params: params}
-}
-
-func NewContentTypeFrom(data []byte) *MIMEHeader {
-	ct := http.DetectContentType(data)
-	ct, cs, _ := strings.Cut(ct, "; charset=")
-	return &MIMEHeader{
-		name:   "Type",
-		val:    ct,
-		params: NewMIMEParams("charset", cs)}
 }
 
 // NewContentTransferEncoding returns 'Content-Transfer-Encoding' header:

@@ -49,11 +49,6 @@ func TestMIMEContentType(t *testing.T) {
 	assert.NoError(t, h.Validate(), "text/plain")
 	assert.Equal(t, "Content-Type: text/plain; charset=us-ascii\r\n", h.String(), "text/plain")
 
-	// detect type
-	h = header.NewContentTypeFrom([]byte("<html>foo</html>"))
-	assert.NoError(t, h.Validate(), "detect type")
-	assert.Equal(t, "Content-Type: text/html; charset=utf-8\r\n", h.String(), "detect type")
-
 	// tspecial
 	h = header.NewContentType("multipart/mixed", header.NewMIMEParams("boundary", "(foo)"))
 	assert.NoError(t, h.Validate(), "tspecials")

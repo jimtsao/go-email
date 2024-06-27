@@ -18,6 +18,7 @@ package mime
 import (
 	"fmt"
 	"math/rand"
+	"net/http"
 	"strings"
 
 	"github.com/jimtsao/go-email/header"
@@ -55,6 +56,14 @@ func randomBoundary(n int) string {
 	b[len(b)-1] = bcharnospace[rand.Intn(len(bcharnospace))]
 
 	return string(b)
+}
+
+// DetectContentType returns content type and charset if applicable
+// It splits the two unlike http.DetectContentType
+func DetectContentType(data []byte) (ctype string, charset string) {
+	ct := http.DetectContentType(data)
+	ct, cs, _ := strings.Cut(ct, "; charset=")
+	return ct, cs
 }
 
 // syntax:
