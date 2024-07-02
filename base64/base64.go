@@ -4,6 +4,7 @@ package base64
 import (
 	"encoding/base64"
 	"io"
+	"strings"
 )
 
 // The encoded output stream must be represented
@@ -51,4 +52,12 @@ func (b *b64Writer) Write(p []byte) (int, error) {
 	}
 
 	return written, err
+}
+
+// EncodeToString returns the RFC 2045 defined base64 encoding of src
+func EncodeToString(src []byte) string {
+	sb := &strings.Builder{}
+	enc := NewEncoder(sb)
+	enc.Write(src) // error always nil when using strings.Builder
+	return sb.String()
 }
