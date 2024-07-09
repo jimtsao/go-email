@@ -184,9 +184,9 @@ func TestEmailComposition(t *testing.T) {
 	assert.Regexp(t, want, m.Raw(), "1 inline, 2 attachment")
 
 	// multipart mixed > multipart related
-	// 1 body, 2 inline, 2 attachment
+	// 1 body, 1 inline, 1 attachment
 	m.Body = body
-	m.Attachments = []*goemail.Attachment{inline, inline, attachment, attachment}
+	m.Attachments = []*goemail.Attachment{inline, attachment}
 	want = wantHeader +
 		"Content-Type: multipart/mixed; boundary=.*?\r\n" +
 		"\r\n" +
@@ -195,11 +195,8 @@ func TestEmailComposition(t *testing.T) {
 		"\r\n" +
 		start + wantBody +
 		mid + wantInline +
-		mid + wantInline +
 		end +
 		mid + wantAttachment +
-		mid + wantAttachment +
 		end
-	assert.Regexp(t, want, m.Raw(), "2 inline, 2 attachment")
-
+	assert.Regexp(t, want, m.Raw(), "1 body, 1 inline, 1 attachment")
 }

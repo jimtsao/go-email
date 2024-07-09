@@ -98,16 +98,21 @@ func (e *Email) Raw() string {
 	}
 
 	// multipart mixed
-	if attachments != nil && len(inline) <= 1 {
-		if body != nil && inline == nil {
+	var mixed *mime.Entity
+	if attachments != nil {
+		if body == nil && inline == nil {
+			mixed = mime.NewMultipartMixed(headers, attachments)
+		} else if body != nil && inline == nil {
 			parts = append([]*mime.Entity{body}, attachments...)
+			mixed = mime.NewMultipartMixed(headers, parts)
 		} else if body == nil && len(inline) == 1 {
 			parts = append(inline, attachments...)
-		} else {
-			parts = attachments
+			mixed = mime.NewMultipartMixed(headers, parts)
 		}
-		mixed := mime.NewMultipartMixed(headers, parts)
-		return mixed.String()
+
+		if mixed != nil {
+			return mixed.String()
+		}
 	}
 
 	// multipart mixed > multipart related
@@ -117,7 +122,7 @@ func (e *Email) Raw() string {
 	}
 	related := mime.NewMultipartRelated(nil, parts)
 	parts = append([]*mime.Entity{related}, attachments...)
-	mixed := mime.NewMultipartMixed(headers, parts)
+	mixed = mime.NewMultipartMixed(headers, parts)
 	return mixed.String()
 }
 
